@@ -40,6 +40,20 @@ class Vocab(object):
 
         print('Finished construct vocab of %d words'%self._count)
 
+    def word2id(self, word):
+        if word not in self._word_to_id:
+            return self._word_to_id[SPECIAL_TOKEN[3]]
+        return self._word_to_id[word]
 
+    def id2word(self, id):
+        if id not in self._id_to_word:
+            raise ValueError('id not found in vocab %d'%id)
+        return self._id_to_word[id]
+
+    def size(self):
+        return self._count
+
+    def write_metadata(self, fpath):
+        pass
 
 

@@ -3,7 +3,7 @@ import tensorflow as tf
 import os
 from collections import namedtuple
 from Vocab import Vocab
-
+from Batcher import Batcher
 # define some flags
 FLAGS = tf.app.flags.FLAGS
 
