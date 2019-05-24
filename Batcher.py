@@ -6,6 +6,7 @@ import random
 import struct
 from tensorflow.core.example import example_pb2
 import tensorflow as tf
+import numpy as np
 import Vocab
 import data
 import time
@@ -44,8 +45,6 @@ class Example(object):
         self.original_abstract = abstract
         self.original_abstract_sents = abstract_sentences
 
-
-
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):
         inp = [start_id]+sequence[:]
         target = sequence[:]
@@ -71,7 +70,6 @@ class Example(object):
                 self.enc_input_extend_vocab.append(pad_id)
 
 
-
 class Batch:
 
     def __init__(self, example_list, hps, vocab):
@@ -80,11 +78,44 @@ class Batch:
         self.init_decoder_seq(example_list, hps)
         self.store_orig_strings(example_list)
 
+
+
     def init_encoder_seq(self, example, hps):
-        pass
+        max_enc_seq_len = max([ex.enc_len for ex in example])
+
+        for ex in example:
+            ex.pad_encoder_input(max_enc_seq_len, self.pad_id)
+
+        self.enc_batch = np.zeros((hps.batch_size, max_enc_seq_len),dtype=np.int32)
+        self.enc_lens = np.zeros((hps.batch_size), dtype=np.int32)
+        self.enc_padding_mask = np.zeros((hps.batch_size, max_enc_seq_len), dtype=np.float32)
+
+        for i, ex in example:
+            self.enc_batch[i,:] = ex.enc_input[:]
+            self.enc_lens[i] = ex.enc_len
+            for j in range(ex.enc_len):
+                self.enc_padding_mask[i][j] = 1
+
+        if hps.pointer_gen:
+            self.max_art_oovs = max([len(ex.article_oovs) for ex in example])
+            self.art_oovs = [ex.article_oovs for ex in example]
+            self.enc_batch_extend_vocab = np.zeros((hps.batch_size, max_enc_seq_len), dtype=np.int32)
+            for i, ex in example:
+                self.enc_batch_extend_vocab[i,:] = ex.enc_input_extend_vocab[:]
 
     def init_decoder_seq(self, example, hps):
-        pass
+        for ex in example:
+            ex.pad_decoder_inp_targ(hps.max_dec_steps, self.pad_id)
+
+            self.dec_batch = np.zeros((hps.batch_size, hps.max_dec_steps), dtype=np.int32)
+            self.target_batch = np.zeros((hps.batch_size, hps.max_dec_steps), dtype=np.int32)
+            self.dec_padding_mask = np.zeros((hps.batch_size, hps.max_dec_steps), dtype=np.float32)
+
+            for i, ex in example:
+                self.dec_batch[i, :] = ex.dec_input[:]
+                self.target_batch[i,:]=ex.target[:]
+                for j in range(ex.dec_len):
+                    self.dec_padding_mask[i][j] = 1
 
     def store_orig_strings(self, example_list):
         self.original_articles = [ex.original_article for ex in example_list]
@@ -128,6 +159,16 @@ class Batcher:
             self._watch_thread = Thread(target=self.watch_threads)
             self._watch_thread.daemon=True
             self._watch_thread.start()
+
+    def next_batch(self):
+        if self._batch_queue.qsize() == 0:
+            tf.logging.warning('Bucket input queue is empty')
+            if self._single_pass and self._finished_reading:
+                tf.logging.info('Finished reading dataset in single_pass mode.')
+                return None
+
+        batch = self._batch_queue.get()
+        return batch
 
     def _fill_example_queue(self):
         input_gen = self.text_generator(self.example_generator())
