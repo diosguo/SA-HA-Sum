@@ -4,6 +4,7 @@ import os
 from collections import namedtuple
 from Vocab import Vocab
 from Batcher import Batcher
+from model import SummarizationModel
 # define some flags
 FLAGS = tf.app.flags.FLAGS
 
@@ -17,6 +18,12 @@ tf.app.flags.DEFINE_string('vocab_path','','path of vocab file')
 tf.app.flags.DEFINE_integer('vocab_size',5000,'Size of vocab')
 
 
+def setup_training(model, batcher):
+    train_dir = os.path.join(FLAGS.log_root, 'train')
+    if not os.path.exists(train_dir):
+        os.mkdir(train_dir)
+
+    model.build_graph()
 
 
 def main(argv_unused):
