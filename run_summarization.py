@@ -50,12 +50,23 @@ def main(argv_unused):
 
     batcher = Batcher(FLAGS.data_path, vocab, hps, single_pass=FLAGS.single_pass)
 
+    tf.set_random_seed(111)
 
-
-
-
-
-
+    if hps.mode == 'train':
+        tf.logging.info('Creating model..')
+        model = SummarizationModel(hps, vocab)
+        setup_training(model, batcher)
+    elif hps.mode == 'eval':
+        model = SummarizationModel(hps, vocab)
+        run_eval(model, batcher, vocab)
+    elif hps.mode == 'decode':
+        decode_model_hps = hps
+        decode_model_hps = hps._replace(max_dec_steps=1)
+        model = SummarizationModel(decode_model_hps, vocab)
+        decoder = BeamSearchDecoder(model, batcher, vocab)
+        decoder.decode()
+    else:
+        raise ValueError("The 'mode' flag must be one of train/eval/decode")
 
 # main
 if __name__ == '__main__':
