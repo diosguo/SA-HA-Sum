@@ -1,3 +1,4 @@
+import csv
 
 SPECIAL_TOKEN = ['<s>','</s>','[PAD]','[UNK]','[START]','[STOP]']
 
@@ -54,6 +55,13 @@ class Vocab(object):
         return self._count
 
     def write_metadata(self, fpath):
-        pass
+        print('Writing word embedding metadata file to %s'%fpath)
+
+        with open(fpath,'w') as f:
+            fieldnames = ['word']
+            writer = csv.DictWriter(f, delimiter='\t',fieldnames=fieldnames)
+            for i in range(self.size()):
+                writer.writerow({'word':self._id_to_word[i]})
+
 
 
