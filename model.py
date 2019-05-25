@@ -3,7 +3,7 @@ from tensorflow.contrib.tensorboard.plugins import projector
 import tensorflow.contrib as contrib
 import time
 import os
-
+from attention_decoder import attention_decoder
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -21,7 +21,7 @@ class SummarizationModel(object):
         self._enc_padding_mask = tf.placeholder(tf.float32, [hps.batch_size,None], name='enc_padding_mask')
 
         if FLAGS.pointer_gen:
-            self._enc_batch_extend_vocadb = tf.placeholder(tf.int32, [hps.batch_size,None], name='enc_batch_extend_vocab')
+            self._enc_batch_extend_vocab = tf.placeholder(tf.int32, [hps.batch_size,None], name='enc_batch_extend_vocab')
             self._max_art_oovs = tf.placeholder(tf.int32, [], name='max_art_oovs')
 
         self._dec_batch = tf.placeholder(tf.int32, [hps.batch_size, hps.max_dec_steps], name='dec_batch')
@@ -81,6 +81,29 @@ class SummarizationModel(object):
                                                                              pointer_gen=hps.pointer_gen,
                                                                              use_coverage=hps.coverage,
                                                                              prev_coverage=prev_coverage)
+        return outputs, out_state, attn_dists, p_gens, coverage
+
+    def _calc_final_dist(self,vocab_dists, attn_dists):
+        with tf.variable_scope('final_distribution'):
+            vocab_dists = [p_gen*dist for (p_gen, dist) in zip(self.p_gens, vocab_dists)]
+            attn_dists = [(1-p_gen)*dist for (p_gen, dist) in zip(self.p_gens, vocab_dists)]
+
+            extended_vsize = self._vocab.size() + self._max_art_oovs
+            extra_zeros = tf.zeros((self._hps.batch_size, self._max_art_oovs))
+            vocab_dists_extended = [tf.concat(axis=1,values=[dist,extra_zeros]) for dist in vocab_dists]
+
+            batch_nums = tf.range(0,limit=self._hps.batch_size)
+            batch_nums = tf.expand_dims(batch_nums,1)
+            attn_len = tf.shape(self._enc_batch_extend_vocab)[1]
+            batch_nums = tf.tile(batch_nums,[1,attn_len])
+            indices = tf.stack((batch_nums,self._enc_batch_extend_vocab),axis=2)
+            shape = [self._hps.batch_size, extended_vsize]
+            attn_dists_projected = [tf.scatter_nd(indices, copy_dist, shape) for copy_dist in attn_dists]
+
+            final_dists = [vocab_dist + copy_dist for (vocab_dist,copy_dist) in zip(vocab_dists_extended, attn_dists_projected)]
+
+            return final_dists
+
 
     def _add_seq2seq(self):
         hps = self._hps
@@ -104,6 +127,24 @@ class SummarizationModel(object):
 
         with tf.variable_scope('decoder'):
             decoder_outputs, self._dec_out_state, self.attn_dists, self.p_gens, self.coverage = self._add_decoder(emb_dec_inputs)
+
+        with tf.variable_scope('output_projection'):
+            w = tf.get_variable('w',[hps.hidden_dim, vsize], dtype=tf.float32,initializer=self.trunc_norm_init)
+            w_t = tf.transpose(w)
+            v = tf.get_variable('v',[vsize],dtype=tf.float32,initializer=self.trunc_norm_init)
+            vocab_scores = []
+            for i,output in enumerate(decoder_outputs):
+                if i>0:
+                    tf.get_variable_scope().reuse_variables()
+                vocab_scores.append(tf.nn.xw_plus_b(output,w,v))
+            vocab_dists = [tf.nn.softmax(s) for s in vocab_scores]
+
+        if FLAGS.pointer_gen:
+            final_dists = self._calc_final_dist(vocab_dists, self.attn_dists)
+        else:
+            final_dists = vocab_dists
+
+
 
 
     def build_graph(self):
