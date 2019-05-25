@@ -177,9 +177,6 @@ class SummarizationModel(object):
             topk_probs, self._topk_ids = tf.nn.top_k(final_dists, hps.batch_size*2)
             self._topk_log_probs = tf.log(topk_probs)
 
-
-
-
     def build_graph(self):
         tf.logging.info('Building graph...')
         t0 = time.time()
