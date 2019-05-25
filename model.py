@@ -177,6 +177,21 @@ class SummarizationModel(object):
             topk_probs, self._topk_ids = tf.nn.top_k(final_dists, hps.batch_size*2)
             self._topk_log_probs = tf.log(topk_probs)
 
+    def _add_train_op(self):
+        loss_to_minimize = self._total_loss if self._hps.coverage else self._loss
+        tvars = tf.trainable_variables()
+        gradients = tf.gradients(loss_to_minimize, tvars, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE)
+
+        with tf.device('/gpu:0'):
+            grads, global_norm = tf.clip_by_global_norm(gradients,self._hps.max_grad_norm)
+
+        tf.summary.scalar('global_norm',global_norm)
+
+        optimizer = tf.train.AdagradOptimizer(self._hps.lr, initial_accumulator_value=self._hps.adagrad_init_acc)
+        with tf.device('/gpu:0'):
+            self._train_op = optimizer.apply_gradients(zip(grads,tvars),global_step=self.global_step, name='train_step')
+
+
     def build_graph(self):
         tf.logging.info('Building graph...')
         t0 = time.time()
@@ -184,6 +199,11 @@ class SummarizationModel(object):
         with tf.device('/gpu:0'):
             self._add_seq2seq()
         self.global_step = tf.Variable(0,name='global_step',trainable=False)
+        if self._hps.mode == 'train':
+            self._add_train_op()
+        self._summaries = tf.summary.merge_all()
+        t1 = time.time()
+        tf.logging.info('Time to build graph:%i seconds'%(t1-t0))
 
 
 def _mask_and_avg(values, padding_mask):
