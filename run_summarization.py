@@ -6,6 +6,8 @@ from Vocab import Vocab
 from Batcher import Batcher
 from model import SummarizationModel
 from tensorflow.python import debug as tf_debug
+import time
+import numpy as np
 
 # define some flags
 FLAGS = tf.app.flags.FLAGS
@@ -170,7 +172,45 @@ def run_training(model, batcher, sess_context_manager, sv, summary_writer):
                 summary_writer.flush()
 
 
+def run_eval(model, batcher, vocab):
+    model.build_graph()
+    saver = tf.train.Saver(max_to_keep=3)
+    sess = tf.Session(config=util.get_config())
+    eval_dir = os.path.join(FLAGS.log_root,'eval')
+    bestmodel_save_path = os.path.join(eval_dir, 'bestmodel')
+    summary_writer = tf.summary.FileWriter(eval_dir)
 
+    running_avg_loss = 0
+    best_loss = None
+
+    while True:
+        _ = util.load_ckpt(saver, sess)
+        batch = batcher.next_batch()
+
+        t0 = time.time()
+        results = model.run_eval_step(sess, batch)
+        t1 = time.time()
+        tf.logging.info('seconds for batch: %.2f'%(t1-t0))
+
+        loss = results['loss']
+        tf.logging.info('loss: %f'%loss)
+        if FLAGS.coverage:
+            coverage_loss = results['coverage_loss']
+            tf.logging.info("coverage_loss: %f", coverage_loss)
+
+        summaries = results['summaries']
+        train_step = results['global_step']
+        summary_writer.add_summary(summaries, train_step)
+
+        running_avg_loss = calc_running_avg_loss(np.asscalar(loss), running_avg_loss, summary_writer, train_step)
+
+        if best_loss is None or running_avg_loss < best_loss:
+            tf.logging.info('Fount new best model with %.3f running_avg_loss. Saving to %s'%(running_avg_loss, bestmodel_save_path))
+            saver.save(sess, bestmodel_save_path, global_step=train_step, latest_filename='checkpoint_best')
+            best_loss = running_avg_loss
+
+        if train_step % 100 == 0:
+            summary_writer.flush()
 
 
 def main(argv_unused):
