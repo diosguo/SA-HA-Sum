@@ -84,6 +84,22 @@ def restore_best_model():
     exit()
 
 
+def convert_to_coverage_model():
+    tf.logging.info('converting non-coverage model to coverage model...')
+
+    sess = tf.Session(config=util.get_config())
+    sess.run(tf.initialize_all_variables())
+
+    saver = tf.train.Saver([v for v in tf.global_variables() if 'coverage' not in v.name and 'Adagrad' not in v.name])
+    curr_ckpt = util.load_ckpt(saver, sess)
+
+    new_fname = curr_ckpt + '_cov_init'
+
+    new_saver = tf.train.Saver()
+    new_saver.save(sess, new_fname)
+    exit()
+
+
 def setup_training(model, batcher):
     train_dir = os.path.join(FLAGS.log_root, 'train')
     if not os.path.exists(train_dir):
