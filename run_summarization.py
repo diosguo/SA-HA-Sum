@@ -5,6 +5,8 @@ from collections import namedtuple
 from Vocab import Vocab
 from Batcher import Batcher
 from model import SummarizationModel
+from tensorflow.python import debug as tf_debug
+
 # define some flags
 FLAGS = tf.app.flags.FLAGS
 
@@ -131,6 +133,43 @@ def setup_training(model, batcher):
     except KeyboardInterrupt:
         tf.logging.info('Caught keyboard interrupt on worker. Stopping...')
         sv.stop()
+
+
+def run_training(model, batcher, sess_context_manager, sv, summary_writer):
+    tf.logging.info('starting run_training')
+    with sess_context_manager as sess:
+        if FLAGS.debug:
+            sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+            sess.add_tensor_filter('has_inf_or_nan', tf_debug.has_inf_or_nan)
+
+        while True:
+            batch = batcher.next_batch()
+
+            tf.logging.info('running training step...')
+            t0 = time.time()
+            results = model.run_train_setp(sess, batch)
+            t1 = time.time()
+            tf.logging.info('Seconds for training setp:%.3f'%t1-t0)
+
+            loss = results['loss']
+            tf.logging.info('loss: %f'%loss)
+
+            if not np.isfinite(loss):
+                raise Exception('Loss is not finite. Stoping...')
+
+            if FLAGS.coverage:
+                coverage_loss = results['coverage_loss']
+                tf.logging.info('coverage_loss: %f'%coverage_loss)
+
+            summaries = results['summaries']
+            train_step = results['global_step']
+
+            summary_writer.add_summary(summaries, train_step)
+
+            if train_step % 100 == 0:
+                summary_writer.flush()
+
+
 
 
 
