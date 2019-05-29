@@ -63,6 +63,27 @@ def calc_running_avg_loss(loss, running_avg_loss, summary_writer, step, decay=0.
     tf.logging.info('running_avg_loss:%f', running_avg_loss)
     return running_avg_loss
 
+
+def restore_best_model():
+    tf.logging.info('Restoring best model for training')
+
+    sess = tf.Session(config=util.get_config())
+    tf.logging.info('Initializing all variables...')
+    sess.run(tf.initialize_all_variables())
+
+    saver = tf.train.Saver([v for v in tf.all_variables() if 'Adagrad' not in v.name])
+    curr_ckpt = util.load_ckpt(saver, sess, 'eval')
+    tf.logging.info('Restored %s.'%curr_ckpt)
+
+    new_model_name = curr_ckpt.split('/')[-1].replace('bestmodel','model')
+    new_fname = os.path.join(FLAGS.log_root, 'train',new_model_name)
+    tf.logging.info('Saving model to %s' % new_fname)
+    new_saver = tf.train.Saver()
+    new_saver.save(sess, new_fname)
+    print('Saved')
+    exit()
+
+
 def setup_training(model, batcher):
     train_dir = os.path.join(FLAGS.log_root, 'train')
     if not os.path.exists(train_dir):
