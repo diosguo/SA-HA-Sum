@@ -5,6 +5,7 @@ from collections import namedtuple
 from Vocab import Vocab
 from Batcher import Batcher
 from model import SummarizationModel
+from decode import BeamSearchDecoder
 from tensorflow.python import debug as tf_debug
 import time
 import numpy as np
