@@ -106,6 +106,32 @@ def setup_training(model, batcher):
         os.mkdir(train_dir)
 
     model.build_graph()
+    if FLAGS.convert_to_coverage_model:
+        assert FLAGS.coverage, 'To convert you none-coverage model to a coverage model, ' \
+                               'run with convert_to_coverage_model=True and coverage=True"'
+        convert_to_coverage_model()
+    if FLAGS.restore_best_model():
+        restore_best_model()
+    saver = tf.train.Saver(max_to_keep=3)
+
+    sv = tf.train.Supervisor(logdir=train_dir,
+                             is_chief=True,
+                             saver=saver,
+                             summary_op=None,
+                             save_summaries_secs=60,
+                             save_model_secs=60,
+                             global_step=model.global_step)
+    summary_writer = sv.summary_writer
+
+    tf.logging.info('Preparing or waiting for session...')
+    sess_context_manager = sv.prepare_or_wait_for_session(config=util.get_config())
+    tf.logging.info('Created Session.')
+    try:
+        run_training(model, batcher, sess_context_manager,sv, summary_writer)
+    except KeyboardInterrupt:
+        tf.logging.info('Caught keyboard interrupt on worker. Stopping...')
+        sv.stop()
+
 
 
 def main(argv_unused):
