@@ -205,6 +205,48 @@ class SummarizationModel(object):
         t1 = time.time()
         tf.logging.info('Time to build graph:%i seconds'%(t1-t0))
 
+    def _make_feed_dict(self, batch, just_enc=False):
+        feed_dict = dict()
+        feed_dict[self._enc_batch] = batch.enc_batch
+        feed_dict[self._enc_lens] = batch.enc_lens
+        feed_dict[self._enc_padding_mask] = batch.enc_padding_mask
+        if FLAGS.pointer_gen:
+            feed_dict[self._enc_batch_extend_vocab] = batch.enc_batch_extend_vocab
+            feed_dict[self._max_art_oovs] = batch.max_art_oovs
+        if not just_enc:
+            feed_dict[self._dec_batch] = batch.dec_batch
+            feed_dict[self._target_batch] = batch.target_batch
+            feed_dict[self._dec_padding_mask] = batch.dec_padding_mask
+        return feed_dict
+
+
+
+    def run_train_step(self, sess, batch):
+        feed_dict = self._make_feed_dict(batch)
+
+        to_return = {
+            'train_op':self._train_op,
+            'summaries':self._summaries,
+            'loss':self._loss,
+            'global_step':self.global_step
+        }
+        if self._hps.coverage:
+            to_return['coverage_loss'] = self._coverage_loss
+        return sess.run(to_return, feed_dict)
+
+    def run_eval_step(self, sess, batch):
+        feed_dict = self._make_feed_dict(batch)
+
+        to_return = {
+            'summaries':self._summaries,
+            'loss':self._loss,
+            'global_step':self.global_step
+        }
+
+        if self._hps.coverage:
+            to_return['coverage_loss'] = self._coverage_loss
+        return sess.run(to_return, feed_dict)
+
 
 def _mask_and_avg(values, padding_mask):
     dec_lens = tf.reduce_sum(padding_mask, axis=1)
