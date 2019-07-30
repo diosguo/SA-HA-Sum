@@ -61,7 +61,8 @@ class Example(object):
         # Process the headline
         headline = ' '.join(headline)
         headline_words = headline.split()
-        head_ids = [vocab.word2id(w) for w in headline_words]
+        self.head_len = len(headline_words)
+        self.head_input = [vocab.word2id(w) for w in headline_words]
 
         # Get the decoder input sequence and target sequence
         self.dec_input, self.target = self.get_dec_inp_targ_seqs(abs_ids, hps.max_dec_steps, start_decoding,
@@ -79,12 +80,16 @@ class Example(object):
             # represented by their temporary article OOV id
             abs_ids_extend_vocab = data.abstract2ids(abstract_words, vocab, self.article_oovs)
 
+            # 同样处理下Headline
+            self.head_input_extend_vocab, self.headline_oovs = data.article2ids(headline_words, vocab)
+
             # Overwrite decoder target sequence so it uses the temp article OOV ids
             _, self.target = self.get_dec_inp_targ_seqs(abs_ids_extend_vocab, hps.max_dec_steps, start_decoding,
                                                         stop_decoding)
 
         # Store the original strings
         self.original_article = article
+        self.original_headline = headline
         self.original_abstract = abstract
         self.original_abstract_sents = abstract_sentences
 
@@ -129,6 +134,20 @@ class Example(object):
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append(pad_id)
 
+    def pad_headline_input(self, max_len_headline, pad_id):
+        """
+        PAD the headline input sequence with pad_id up to max_len of headline.
+        :param max_len_headline:
+        :param pad_id:
+        :return: None
+        """
+        while len(self.head_input) < max_len_headline:
+            self.head_input.append(pad_id)
+        if self.hps.pointer_gen:
+            while len(self.head_input_extend_vocab) < max_len_headline:
+                self.enc_input_extend_vocab.append(pad_id)
+
+
 
 class Batch(object):
     """Class representing a minibatch of train/val/test examples for text summarization."""
@@ -163,34 +182,47 @@ class Batch(object):
         """
         # Determine the maximum length of the encoder input sequence in this batch
         max_enc_seq_len = max([ex.enc_len for ex in example_list])
-
+        max_head_seq_len = max([ex.head_len for ex in example_list])
         # Pad the encoder input sequences up to the length of the longest sequence
         for ex in example_list:
             ex.pad_encoder_input(max_enc_seq_len, self.pad_id)
+            ex.pad_headline_input(max_head_seq_len, self.pad_id)
 
         # Initialize the numpy arrays
         # Note: our enc_batch can have different length (second dimension) for each batch because we use dynamic_rnn for the encoder.
         self.enc_batch = np.zeros((hps.batch_size, max_enc_seq_len), dtype=np.int32)
+        self.head_batch = np.zeros((hps.batch_size, max_head_seq_len), dtype=np.int32)
         self.enc_lens = np.zeros((hps.batch_size), dtype=np.int32)
+        self.head_lens = np.zeros((hps.batch_size), dtype=np.int32)
         self.enc_padding_mask = np.zeros((hps.batch_size, max_enc_seq_len), dtype=np.float32)
+        self.head_padding_mask = np.zeros((hps.batch_size, max_head_seq_len), dtype=np.float32)
 
         # Fill in the numpy arrays
+        # 处理数据为输入的格式们，加入Mask
         for i, ex in enumerate(example_list):
             self.enc_batch[i, :] = ex.enc_input[:]
+            self.head_batch[i, :] = ex.head_input[:]
+            self.head_lens[i] = ex.head_len
             self.enc_lens[i] = ex.enc_len
             for j in range(ex.enc_len):
                 self.enc_padding_mask[i][j] = 1
+            for j in range(ex.head_len):
+                self.head_padding_mask[i][j] = 1
 
         # For pointer-generator mode, need to store some extra info
         if hps.pointer_gen:
             # Determine the max number of in-article OOVs in this batch
             self.max_art_oovs = max([len(ex.article_oovs) for ex in example_list])
+            self.max_head_oovs = max([len(ex.headline_oovs) for ex in example_list])
             # Store the in-article OOVs themselves
             self.art_oovs = [ex.article_oovs for ex in example_list]
+            self.head_oovs = [ex.headline_oovs for ex in example_list]
             # Store the version of the enc_batch that uses the article OOV ids
             self.enc_batch_extend_vocab = np.zeros((hps.batch_size, max_enc_seq_len), dtype=np.int32)
+            self.head_batch_extend_vocab = np.zeros((hps.batch_size, max_head_seq_len), dtype=np.int32)
             for i, ex in enumerate(example_list):
                 self.enc_batch_extend_vocab[i, :] = ex.enc_input_extend_vocab[:]
+                self.head_batch_extend_vocab[i, :] = ex.head_input_extend_vocab[:]
 
     def init_decoder_seq(self, example_list, hps):
         """Initializes the following:
@@ -221,6 +253,7 @@ class Batch(object):
     def store_orig_strings(self, example_list):
         """Store the original article and abstract strings in the Batch object"""
         self.original_articles = [ex.original_article for ex in example_list]  # list of lists
+        self.original_headlines = [ex.original_headline for ex in example_list] # list of lists
         self.original_abstracts = [ex.original_abstract for ex in example_list]  # list of lists
         self.original_abstracts_sents = [ex.original_abstract_sents for ex in example_list]  # list of list of lists
 
@@ -341,6 +374,7 @@ class Batcher(object):
 
             else:  # beam search decode mode
                 ex = self._example_queue.get()
+                # TODO 此处这个b是同一个样本的重复，为什么？
                 b = [ex for _ in range(self._hps.batch_size)]
                 self._batch_queue.put(Batch(b, self._hps, self._vocab))
 
