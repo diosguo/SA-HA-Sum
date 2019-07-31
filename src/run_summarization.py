@@ -1,12 +1,17 @@
 import tensorflow as tf
+import numpy as np
 from argparse import ArgumentParser
 from model import DCA_Model
 import os
 from data import Vocab
 from batcher import Batcher
+from keras.callbacks import ModelCheckpoint
+
+np.random.seed(1)
+tf.random.set_random_seed(1)
 
 argparse = ArgumentParser()
-argparse.add_argument('--data_path',type=str)
+argparse.add_argument('--data_path', type=str)
 argparse.add_argument('--agents_num', default=3, type=int, help="the number of agents")
 argparse.add_argument('--encode_dim', default=128, type=int, help='dim of encoder output')
 argparse.add_argument('--encode_len', default=900, type=int)
@@ -21,18 +26,22 @@ argparse.add_argument('--drop_keep', default=0.5, type=float)
 argparse.add_argument('--attention_units', default=100, type=int)
 argparse.add_argument('--learning_rate', default=0.01, type=float)
 argparse.add_argument('--encoder_layers_num', default=3, type=int)
-argparse.add_argument('--mode',default='train',type=str,help='train/decode')
-argparse.add_argument('--len_per_agent',default=300, type=int)
-argparse.add_argument('--log_root',default='./log_root', type=str)
-argparse.add_argument('--exp_name',type=str)
+argparse.add_argument('--mode', default='train', type=str, help='train/decode')
+argparse.add_argument('--len_per_agent', default=300, type=int)
+argparse.add_argument('--log_root', default='./log_root', type=str)
+argparse.add_argument('--exp_name', type=str)
 argparse.add_argument('--vocab_path', type=str)
 argparse.add_argument('--vocab_size', type=str)
 argparse.add_argument('--pointer_gen', default=False, type=bool)
 args = argparse.parse_args()
 
 
-def main():
+def data_generator(batcher):
+    batch = batcher.next_batch()
 
+    yield [batch.enc_batch, batch.head_batch], batch.dec_batch
+
+def main():
     args.log_root = os.path.join(args.log_root, args.exp_name)
     if not os.path.exists(args.log_root):
         if args.mode == 'train':
@@ -47,18 +56,20 @@ def main():
 
     hparam_list = ['mode', 'batch_size', 'max_dec_steps', 'max_enc_steps', 'pointer_gen']
 
-    hps = {'mode':args.mode,
-           'batch_size':args.batch_size,
-           'max_dec_steps':args.decode_len,
-           'max_enc_steps':args.encode_len,
-           'pointer_gen':args.pointer_gen}
-    batcher = Batcher(args.data_path, vocab, hps, single_pass=True if args.mode=='decode' else False)
-
+    hps = {'mode': args.mode,
+           'batch_size': args.batch_size,
+           'max_dec_steps': args.decode_len,
+           'max_enc_steps': args.encode_len,
+           'pointer_gen': args.pointer_gen}
+    batcher = Batcher(args.data_path, vocab, hps, single_pass=True if args.mode == 'decode' else False)
 
     # todo load dataset
     # todo load vocab, word2id, id2word
     # do train or decode
-    model = DCA_Model(args)
+    model = DCA_Model(args, 'word2id','id2word')
+    model = model.model
+    if args.mode == 'train':
+        model.fit_generator(data_generator(batcher), steps_per_epoch=10000)
 
 
 if __name__ == '__main__':

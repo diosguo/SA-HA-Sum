@@ -34,6 +34,8 @@ class DCA_Model(object):
     def _build_model(self):
 
         sequence_source_id = Input([900], name='source_id', dtype=tf.int32)
+        # TODO Add headline info to the model
+        sequence_headline_id = Input([200], name='headline_id', dtype=tf.int32)
         sequence_target_id = Input([200], name='target_id', dtype=tf.int32)
         sequence_target_mask = Input([200], name='target_mask', dtype=tf.int32)
 
