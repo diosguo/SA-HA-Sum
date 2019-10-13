@@ -1,15 +1,26 @@
-import keras
-from keras.layers import Dense, LSTM, Bidirectional, Flatten, Embedding
-from keras.models import Sequential
-import numpy as np
+from stanfordcorenlp import StanfordCoreNLP
+from mxnet import nd
 
-model = Sequential()
-model.add(Embedding(1,10,input_length=1))
-model.add(LSTM(10,return_sequences=True))
-model.add(Flatten())
+nlp = StanfordCoreNLP(r'D:\ProgramData\stanford-corenlp-full-2018-10-05')
 
-model.add(Dense(1, activation='sigmoid'))
+out = nlp.parse("I love china.")
 
-model.summary()
-LSTM
-print(model.layers[1].states)
+w2v = {'I': [0.1, 0.2, 0.3], 'love': [0.2, 0.4, 0.1], 'china': [0.7, 0.1, 0.4]}
+
+platform = 'win'
+next_line = '\r\n' if platform == 'win' else '\n'
+
+class TNode(object):
+
+    def __init__(self):
+        self.value = None
+        self.next = []
+
+
+def parse_dependency(dep: str):
+    root = TNode()
+    print(dep)
+    print(dep.replace(next_line, ''))
+    print(dep[1:-1].split(' ', 1))
+
+parse_dependency(out)
