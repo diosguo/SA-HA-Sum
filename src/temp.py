@@ -3,10 +3,14 @@
 
 # In[1]:
 
+import stanfordcorenlp
 
 from stanfordcorenlp import StanfordCoreNLP
 from mxnet import nd
-nlp = StanfordCoreNLP(r'D:\ProgramData\stanford-corenlp-full-2018-10-05')
+
+computer = 'lab'
+stanford_path = r'D:\Program Files\stanford-corenlp-full-2018-10-05' if computer == 'lab' else r'D:\ProgramData\stanford-corenlp-full-2018-10-05'
+nlp = StanfordCoreNLP(stanford_path)
 
 
 # In[8]:
@@ -21,36 +25,34 @@ class TNode(object):
 # In[27]:
 
 
-print(nlp.parse('I am happy.'))
-
+print(nlp.parse('I love learning.'))
 
 # In[28]:
 
 
 print(nlp.parse('I am happy'))
 
-
 # In[4]:
 
 
-out = nlp.parse('I am happy').replace('\r\n','')
+out = nlp.parse('I am happy').replace('\r\n', '')
 
 
 # In[5]:
 
 
 # sub part count
-def count_sub(sub:str):
-    p2i = {'(':1,')':-1}
+def count_sub(sub: str):
+    p2i = {'(': 1, ')': -1}
     count = 0
     split_ind = []
     num_of_left = 0
-    for k,i in enumerate(sub):
+    for k, i in enumerate(sub):
         if i in p2i:
             num_of_left += p2i[i]
             if num_of_left == 0:
                 count += 1
-                split_ind.append(k+1)
+                split_ind.append(k + 1)
     return count, split_ind
 
 
@@ -63,12 +65,12 @@ out
 # In[22]:
 
 
-def parse(dep:str):
+def parse(dep: str):
     root = TNode()
-#     print(dep)
-    t = [x.strip() for x in dep[1:-1].split(' ',1)]
+    #     print(dep)
+    t = [x.strip() for x in dep[1:-1].split(' ', 1)]
     root.value = t[0]
-    print(t[0],t[1])
+    print(t[0], t[1])
     sub_num, sub_split_ind = count_sub(t[1])
     pre = 0
     for i in range(sub_num):
@@ -81,7 +83,6 @@ def parse(dep:str):
 
 
 parse(out)
-
 
 # ### 两个需求
 #
@@ -97,15 +98,9 @@ parse(out)
 
 count_sub(out)
 
-
 # In[15]:
 
 
 count_sub('(NP (PRP I))\r\n    (VP (VBP am)\r\n      (ADJP (JJ happy)))')
 
-
 # In[ ]:
-
-
-
-
