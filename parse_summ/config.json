@@ -4,7 +4,10 @@
   "summary_test_path": "",
   "mode": "train",
   "model_param": {
-    "emb_dim": 300,
-    "attention_hidden_size": 128
+    "mode": "train",
+    "original_path": "ttt",
+    "summary_path": "ttt",
+    "vocab_path": "parse_summarization_model/vocab",
+    "vocab_tag_path": "parse_summarization_model/vocab_tag"
   }
 }

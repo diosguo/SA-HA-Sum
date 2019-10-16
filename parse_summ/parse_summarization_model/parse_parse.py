@@ -24,7 +24,6 @@ def parse(dep: str):
     #     print(dep)
     t = [x.strip() for x in dep[1:-1].split(' ', 1)]
     root.val = t[0]
-    print(t[0], t[1])
     sub_num, sub_split_ind = count_sub(t[1])
     pre = 0
     if sub_num == 0:
