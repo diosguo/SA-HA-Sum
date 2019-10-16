@@ -10,4 +10,7 @@ nlp = StanfordCoreNLP(params['stanford_path'])
 
 model = Model(**params['model_param'])
 print(nlp.parse('I love you'))
-model.encoder_test([parse(nlp.parse('I love you'))])
+try:
+    model.encoder_test([parse(nlp.parse('I love you'))])
+finally:
+    nlp.close()

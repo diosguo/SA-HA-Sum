@@ -26,29 +26,31 @@ class ParseEncoder(Block):
             if root.next in self.vocab.word2id:
                 next_emb = self.word_embedding(nd.array([self.vocab.word2id[root.next]]))
             else:
-                next_emb = self.word_embedding(self.vocab.word2id['<unk>'])
+                next_emb = self.word_embedding(nd.array([self.vocab.word2id['<unk>']]))
         elif isinstance(root.next, list):
             # Mid Node
             begin_state = self.word_set.begin_state(batch_size=1)
             next_emb = []
-            for i in root.next[1:]:
+            for i in root.next:
                 next_emb.append(self.emb_tree(i))
-            next_emb = nd.stack(*next_emb)  # T * C
-            next_emb = nd.expand_dims(next_emb, axis=0)  # 1 * T * C
+            print('@emb_tree list')
+            print(next_emb)
+            next_emb = nd.stack(*next_emb,axis=1)  # T * C
+            print('@stacked')
+            print(next_emb)
+            # next_emb = nd.expand_dims(next_emb, axis=0)  # 1 * T * C
+            print(next_emb)
             _, next_emb = self.word_set(next_emb, states=begin_state)
             next_emb = nd.reshape(next_emb[-1], [1, next_emb[-1].shape[-1]])  # 1 * C
 
         else:
             # Wrong Node
             raise Exception('Error with Parse Tree Node.next type' + str(type(root.nexts)))
-        return self.word_ass(
-            nd.concat(
-                self.tag_embedding(
-                    nd.array(self.vocab_tag(root.value))  # shape = 1 * tag_size
-                ),
-                next_emb  # shape = 1 * word_size
-            )
-        )
+
+        tag_emb = self.tag_embedding(nd.array([self.vocab_tag.word2id[root.val]]))
+        emb = nd.concat(tag_emb, next_emb)
+
+        return self.word_ass(emb)
 
     def forward(self, inputs):
         inputs = [self.emb_tree(x) for x in inputs]
