@@ -16,9 +16,10 @@ class BaseModel(Block):
         params = [self.tag_embedding, self.word_embedding, vocab, vocab_tag]
         self.encoder = ParseEncoder(*params)
 
-    def forward(self, inputs):
-        encoder_h, encoder_state = self.encoder(inputs)
-        encoder_c = encoder_state[1]
+    def forward(self, inputs, targets):
+        encoder_h, encoder_state = self.encoder(inputs)  # N * T * 2C
+        encoder_c = encoder_state[1]  # 2 * T * C
+        return encoder_h, encoder_c
 
 
 class Model(object):
@@ -39,4 +40,4 @@ class Model(object):
         """
         encoder = BaseModel(self.vocab, self.vocab_tag)
         encoder.initialize()
-        print(encoder(inputs))
+        print(encoder(inputs, None))

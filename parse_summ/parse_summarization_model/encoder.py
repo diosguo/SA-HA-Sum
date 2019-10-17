@@ -47,8 +47,9 @@ class ParseEncoder(Block):
 
     def forward(self, inputs):
         inputs = [self.emb_tree(x) for x in inputs]
-        inputs = nd.stack(inputs, axis=1)  # T * C
+        inputs = nd.stack(*inputs, axis=1)  # T * C
         # 句子表示，进入BiLSTM
-        h, state = self.sentence_lstm(nd.expand_dims(inputs, axis=0),
+        #print(inputs)
+        h, state = self.sentence_lstm(inputs,
                                       states=self.sentence_lstm.begin_state(batch_size=1))
         return h, state

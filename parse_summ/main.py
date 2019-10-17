@@ -2,15 +2,17 @@ import json
 import time
 from stanfordcorenlp import StanfordCoreNLP
 from model import Model
-from parse_parse import parse
+from parse_parse import parse, TNode
 
 
 params = json.load(open('config.json','r'))
-nlp = StanfordCoreNLP(params['stanford_path'])
+
 
 model = Model(**params['model_param'])
-print(nlp.parse('I love you'))
 try:
-    model.encoder_test([parse(nlp.parse('I love you'))])
+    t = TNode()
+    t.next = 'hello'
+    t.val = 'ROOT'
+    model.encoder_test([t, t])
 finally:
-    nlp.close()
+    pass
