@@ -6,5 +6,5 @@ class Decoder(nn.Block):
         super(Decoder, self).__init__()
         cell = rnn.LSTMCell(100)
 
-    def forward(self, inputs, encoder_states):
+    def forward(self, inputs, encoder_states, padding_mask):
         pass
