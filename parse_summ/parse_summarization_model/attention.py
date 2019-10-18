@@ -1,6 +1,7 @@
 from mxnet.gluon import nn
 from mxnet import nd
 
+
 class BahdanauAttention(nn.Block):
     def __init__(self, units):
         super(BahdanauAttention, self).__init__()
