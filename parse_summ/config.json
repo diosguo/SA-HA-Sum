@@ -3,11 +3,16 @@
   "original_text_path": "",
   "summary_test_path": "",
   "mode": "train",
+  "vocab_path": "parse_summarization_model/vocab",
+  "vocab_tag_path": "parse_summarization_model/vocab_tag",
+  "original_path": "ttt",
+  "summary_path": "ttt",
   "model_param": {
     "mode": "train",
-    "original_path": "ttt",
-    "summary_path": "ttt",
-    "vocab_path": "parse_summarization_model/vocab",
-    "vocab_tag_path": "parse_summarization_model/vocab_tag"
+    "tag_emb_dim": 100,
+    "word_emb_dim": 100,
+    "encoder_lstm_dim": 200,
+    "decoder_hidden_size": 200,
+    "attention_hidden_size": 100
   }
 }
