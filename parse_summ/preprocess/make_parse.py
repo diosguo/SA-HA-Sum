@@ -26,7 +26,7 @@ def parse_stories(stories_path, parsed_stories_path):
 
 if __name__ == '__main__':
 
-    config = json.load(open('config.json', 'r'))
+    config = json.load(open('../config.json', 'r'))
     nlp = StanfordCoreNLP(config['stanford_path'])
     cnn_stories_dir = r'cnn_stories/cnn/stories'
     cnn_parsed_stories_dir = 'cnn_parsed'

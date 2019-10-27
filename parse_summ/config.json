@@ -3,8 +3,8 @@
   "original_text_path": "",
   "summary_test_path": "",
   "mode": "train",
-  "vocab_path": "parse_summarization_model/vocab",
-  "vocab_tag_path": "parse_summarization_model/vocab_tag",
+  "vocab_path": "D:\\Projects\\baseline\\parse_summ\\vocab",
+  "vocab_tag_path": "D:\\Projects\\baseline\\parse_summ\\vocab_tag",
   "original_path": "ttt",
   "summary_path": "ttt",
   "model_param": {
