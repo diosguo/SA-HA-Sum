@@ -55,7 +55,6 @@ def main(parsed_path, save_path):
         sentences = pickle.load(open(os.path.join(parsed_path, file), 'rb'))
         for sent in sentences:
             doc.append(parse(sent))
-        print(doc)
         pickle.dump(doc, open(os.path.join(save_path, file), 'wb'))
 
 

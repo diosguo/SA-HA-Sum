@@ -11,17 +11,16 @@ def parse_stories(stories_path, parsed_stories_path):
     for filename in tqdm(filenames):
         output_path = os.path.join(parsed_stories_path, filename)
         parsed_doc = []
-        try:
-            for line in open(os.path.join(stories_path, filename), 'r', encoding='utf-8'):
-                if line.strip() == '':
-                    continue
-                if line.strip().startswith('@highlight'):
-                    break
+        for line in open(os.path.join(stories_path, filename), 'r', encoding='utf-8'):
+            if line.strip() == '':
+                continue
+            if line.strip().startswith('@highlight'):
+                break
+            try:
                 parsed_doc.append(nlp.parse(line.strip()))
-            pickle.dump(parsed_doc, open(output_path, 'wb'))
-        except:
-            with open('abort_files.log', 'a') as f:
-                f.write('\n' + str(ind) + ' ' + filename)
+            except:
+                continue
+        pickle.dump(parsed_doc, open(output_path, 'wb'))
 
 
 if __name__ == '__main__':
