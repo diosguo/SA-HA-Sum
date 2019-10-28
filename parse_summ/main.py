@@ -4,7 +4,6 @@ from stanfordcorenlp import StanfordCoreNLP
 from model import Model
 from parse_parse import parse, TNode
 
-
 params = json.load(open('config.json','r'))
 
 
@@ -16,10 +15,5 @@ model = Model(
     params['original_path'],
     params['summary_path']
 )
-try:
-    t = TNode()
-    t.next = 'hello'
-    t.val = 'ROOT'
-finally:
-    pass
+
 

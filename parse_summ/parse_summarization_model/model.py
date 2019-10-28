@@ -56,6 +56,7 @@ class Model(object):
         :param summary_path: 摘要文档的路径
         :param vocab_path: 词典路径
         :param vocab_tag_path: 句法解析标记词典路径
+        :param model_param: 模型中的超参数
         """
         self.original_path = original_path
         self.summary_path = summary_path
@@ -65,6 +66,7 @@ class Model(object):
         self.vocab = Vocab(vocab_path)
         self.mode = mode
         self.loss = SoftmaxCrossEntropyLoss()
+        self.model_param = model_param
         self.model = BaseModel(self.vocab, self.vocab_tag, model_param)
 
     def sequence_loss(self, logits, targets, weight=None):

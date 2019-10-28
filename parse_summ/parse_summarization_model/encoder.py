@@ -39,13 +39,10 @@ class ParseEncoder(Block):
         :return: 输入元素的嵌入向量
         """
         next_emb = None
-        if isinstance(root.next, str):
+        if isinstance(root.next, int):
             # Leaf Node，如果是叶子节点，也就是单独词的情况
             # next shape = 1 * word_size
-            if root.next in self.vocab.word2id:
-                next_emb = self.word_embedding(nd.array([self.vocab.word2id[root.next]]))
-            else:
-                next_emb = self.word_embedding(nd.array([self.vocab.word2id['<unk>']]))
+            next_emb = self.word_embedding(nd.array([root.next]))
         elif isinstance(root.next, list):
             # Mid Node
             # 非叶子节点，则需要计算所有子节点的整合向量
