@@ -1,6 +1,6 @@
 class Vocab(object):
     def __init__(self, vocab_path):
-        self._word2id = {'<pad>': 1, '<unk>': 2}
+        self._word2id = {'<pad>': 1, '<unk>': 2, '<s>':3, '</s>':4}
 
         with open(vocab_path, 'r', encoding='utf-8') as vocab_file:
             for line in vocab_file:
