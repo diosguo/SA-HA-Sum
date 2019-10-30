@@ -4,10 +4,10 @@ from mxnet.gluon import nn
 from mxnet import nd, autograd
 from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
-from vocab import Vocab
-from encoder import ParseEncoder
-from decoder import BaseDecoder
-
+from .vocab import Vocab
+from .encoder import ParseEncoder
+from .decoder import BaseDecoder
+from mxnet import cpu
 
 class BaseModel(Block):
     """
@@ -16,7 +16,7 @@ class BaseModel(Block):
 
     """
 
-    def __init__(self, vocab, vocab_tag, model_params):
+    def __init__(self, vocab, vocab_tag, model_params,ctx=cpu(0)):
         """
 
         初始化模型
@@ -31,14 +31,15 @@ class BaseModel(Block):
         self.tag_embedding = nn.Embedding(vocab_tag.size, model_params['tag_emb_dim'])
         self.word_embedding = nn.Embedding(vocab.size, model_params['word_emb_dim'])
         params = [self.tag_embedding, self.word_embedding, vocab, vocab_tag]
-        self.encoder = ParseEncoder(*params, model_params)
-        self.decoder = BaseDecoder(self.word_embedding, vocab, model_params)
+        self.encoder = ParseEncoder(*params, model_params,ctx=ctx)
+        self.decoder = BaseDecoder(self.word_embedding, vocab, model_params,ctx=ctx)
 
     def forward(self, inputs, targets):
-        encoder_h, encoder_state = self.encoder(inputs)  # N * T * 2C
+        # print('starting encode')
+        encoder_h, encoder_state, attention_value= self.encoder(inputs)  # N * T * 2C
         encoder_c = encoder_state[1]  # 2 * T * C
-
-        return self.decoder(targets, encoder_c, encoder_h)
+        # print('end encode')
+        return self.decoder(targets, encoder_c, encoder_h, attention_value)
 
 
 class Model(object):
@@ -46,7 +47,7 @@ class Model(object):
     最顶层框架，控制模型参数、文件路径、梯度训练
     """
 
-    def __init__(self, mode, vocab_path, vocab_tag_path, model_param, original_path, summary_path=None):
+    def __init__(self, mode, vocab_path, vocab_tag_path, model_param, original_path, ctx=cpu(), summary_path=None):
         """
 
         根据参数与模式，构建模型
@@ -68,6 +69,9 @@ class Model(object):
         self.loss = SoftmaxCrossEntropyLoss()
         self.model_param = model_param
         self.model = BaseModel(self.vocab, self.vocab_tag, model_param)
+        self.model.initialize(ctx=ctx)
+        self.ctx = ctx
+        self.trainer = Trainer(self.model.collect_params(), 'adam', {'learning_rate': 0.01})
 
     def sequence_loss(self, logits, targets, weight=None):
         """
@@ -84,9 +88,25 @@ class Model(object):
         else:
             logits = logits * weight
             targets = logits * weight
+        targets = nd.array(targets,ctx=self.ctx)
         loss = self.loss(logits, targets)
-
+        loss = loss.sum() / len(targets)
         return loss
+
+
+    def train_one_step(self, data, optimizer='adam', learning_rate=0.01):
+
+        loss_sum = 0.0
+        for x, y in data:
+
+            with autograd.record():
+                logits = self.model(x, y)
+                loss = self.sequence_loss(logits, y)
+            loss.backward()
+            self.trainer.step(1)
+            loss_sum += loss.asscalar()
+        print('loss= %.3f' % (loss_sum / len(data)))
+        # self.model.collect_params().save('')
 
     def run(self, epoch_num=15, optimizer='adam', learning_rate=0.01):
         """

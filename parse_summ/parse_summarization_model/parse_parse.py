@@ -3,6 +3,12 @@ class TNode(object):
         self.next = []
         self.val = None
 
+    def __str__(self):
+        return '{' + str(self.val) + ' ' + str(self.next) + '}'
+
+    def __repr__(self):
+        return self.__str__()
+
 
 # sub part count
 def count_sub(sub: str):

@@ -12,7 +12,7 @@
     "tag_emb_dim": 100,
     "word_emb_dim": 100,
     "encoder_lstm_dim": 200,
-    "decoder_hidden_size": 200,
+    "decoder_hidden_size": 400,
     "attention_hidden_size": 100
   }
 }
