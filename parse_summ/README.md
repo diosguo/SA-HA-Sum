@@ -17,3 +17,5 @@
 | - vocab.py                 | 定义字典类，提供word2id等功能             |
 | - vocab_tag                | CoreNLP中句法解析的标签字典集合           |
 | url_lists/                 | 用于区分数据集的train/test/valid          |
+
+我还没写完
