@@ -16,7 +16,7 @@ END_TOKENS = ['.', '!', '?', '...', "'", "`", '"', dm_single_close_quote, dm_dou
 
 def read_text_file(text_file):
     lines = []
-    with open(text_file, "r") as f:
+    with open(text_file, "r", encoding='utf-8') as f:
         for line in f:
             lines.append(line.strip())
     return lines
@@ -84,8 +84,8 @@ if __name__ == '__main__':
     config = json.load(open("../config.json", 'r'))
     vocab = Vocab(config['vocab_path'])
     vocab_tag = Vocab(config['vocab_tag_path'])
-    file_list = os.listdir('../cnn_stories')
+    file_list = os.listdir('D:\Projects\cnn_stories_tokenized')
     for file in tqdm(file_list):
-        abstract = get_abs(os.path.join('../cnn_stories', file))
+        abstract = get_abs(os.path.join('D:\Projects\cnn_stories_tokenized', file))
         abstract = list(map(int, abstract.split(' ')))
-        pickle.dump(abstract, open(os.path.join('../cnn_abstract', file), 'wb'))
+        pickle.dump(abstract, open(os.path.join('D:\Projects\cnn_summaries', file), 'wb'))

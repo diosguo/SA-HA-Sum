@@ -47,7 +47,7 @@ class ParseEncoder(Block):
         elif isinstance(root.next, list):
             # Mid Node
             # 非叶子节点，则需要计算所有子节点的整合向量
-            begin_state = self.word_set.begin_state(batch_size=1)
+            begin_state = self.word_set.begin_state(batch_size=1, ctx=self.ctx)
             next_emb = []
             for i in root.next:
                 next_emb.append(self.emb_tree(i))
@@ -81,7 +81,7 @@ class ParseEncoder(Block):
         # 句子表示，进入BiLSTM
         # print(inputs)
         h, state = self.sentence_lstm(inputs,
-                                      states=self.sentence_lstm.begin_state(batch_size=1))
+                                      states=self.sentence_lstm.begin_state(batch_size=1, ctx=self.ctx))
         atten = nd.concat(*self.element, dim=0)
         self.element = []
         return h, state, atten

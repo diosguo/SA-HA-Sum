@@ -68,7 +68,7 @@ class Model(object):
         self.mode = mode
         self.loss = SoftmaxCrossEntropyLoss()
         self.model_param = model_param
-        self.model = BaseModel(self.vocab, self.vocab_tag, model_param)
+        self.model = BaseModel(self.vocab, self.vocab_tag, model_param, ctx)
         self.model.initialize(ctx=ctx)
         self.ctx = ctx
         self.trainer = Trainer(self.model.collect_params(), 'adam', {'learning_rate': 0.01})

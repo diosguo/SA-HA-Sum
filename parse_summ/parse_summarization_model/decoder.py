@@ -38,7 +38,7 @@ class BaseDecoder(nn.Block):
         :return: 返回nd.array，其中为输出的每个词的字典分布
         """
         # print('begin_state',self.cell.begin_state(batch_size=1))
-        self.cell(nd.ones((1,200),ctx=self.ctx), self.cell.begin_state(batch_size=1))
+        self.cell(nd.ones((1,200),ctx=self.ctx), self.cell.begin_state(batch_size=1, ctx=self.ctx))
         decoder_outputs = []
         for i in range(len(inputs)):
             # 根据当前真实摘要，计算Attention
@@ -50,7 +50,7 @@ class BaseDecoder(nn.Block):
             # 传入lstm计算输出，忽略states
             # print('inp_step:',inp_step.shape)
             if i == 0:
-                hidden = self.cell.begin_state(batch_size=1)[1]
+                hidden = self.cell.begin_state(batch_size=1, ctx=self.ctx)[1]
                 states = [nd.reshape(encoder_states, (1, -1)), hidden]
             # print('encoder_states:',encoder_states.shape)
             # print('hidden_size:', self.model_params['decoder_hidden_size'])
