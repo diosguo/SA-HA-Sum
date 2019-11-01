@@ -76,7 +76,7 @@ def get_abs(story_file):
 
     # Make abstract into a signle string, putting <s> and </s> tags around the sentences
     abstract = ' '.join(["%s %s %s" % (vocab.word2id('<s>'), sent, vocab.word2id('</s>')) for sent in highlights])
-
+    abstract = '%s %s %s' % (vocab.word2id(vocab.DECODING_START), abstract, vocab.word2id(vocab.DECODING_STOP))
     return abstract
 
 

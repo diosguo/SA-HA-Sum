@@ -2,7 +2,7 @@ from parse_summ.parse_summarization_model.vocab import Vocab
 import json
 import pickle
 import os
-
+from tqdm import tqdm
 
 class TNode(object):
     def __init__(self):
@@ -50,7 +50,7 @@ def main(parsed_path, save_path):
     files = os.listdir(parsed_path)
     if not os.path.exists(save_path):
         os.mkdir(save_path)
-    for file in files:
+    for file in tqdm(files):
         doc = []
         sentences = pickle.load(open(os.path.join(parsed_path, file), 'rb'))
         for sent in sentences:
@@ -62,4 +62,4 @@ if __name__ == '__main__':
     config = json.load(open('../config.json', 'r'))
     vocab = Vocab(config['vocab_path'])
     vocab_tag = Vocab(config['vocab_tag_path'])
-    main('../cnn_parsed', '../cnn_tree')
+    main('D:\Projects\cnn_parsed', 'D:\Projects\cnn_tree')

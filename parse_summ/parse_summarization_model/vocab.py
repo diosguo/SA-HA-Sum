@@ -1,6 +1,16 @@
 class Vocab(object):
+    PAD_TOKEN = '<pad>'
+    UNKNOWN_TOKEN = '<unk>'
+    SENTENCE_START = '<s>'
+    SENTENCE_END = '</s>'
+    DECODING_START = '<start>'
+    DECODING_STOP = '<stop>'
+
     def __init__(self, vocab_path):
-        self._word2id = {'<pad>': 1, '<unk>': 2, '<s>':3, '</s>':4}
+        self._word2id = {}
+        for w in [Vocab.PAD_TOKEN, Vocab.UNKNOWN_TOKEN, Vocab.SENTENCE_START,
+                  Vocab.SENTENCE_END, Vocab.DECODING_START, Vocab.DECODING_STOP]:
+            self._word2id[w] = len(self._word2id) + 1
 
         with open(vocab_path, 'r', encoding='utf-8') as vocab_file:
             for line in vocab_file:
