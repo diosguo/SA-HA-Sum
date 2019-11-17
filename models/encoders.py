@@ -85,3 +85,50 @@ class ParseEncoder(Block):
         atten = nd.concat(*self.element, dim=0)
         self.element = []
         return h, state, atten
+
+
+
+class RNNEncoder(nn.Block):
+
+    """Encoder with LSTM or GRU"""
+
+    def __init__(self,rnn_type, input_size, hidden_size, output_size, num_layers, dropout, bidirectional=True):
+        """TODO: to be defined.
+
+        :input_size: TODO
+        :hidden_size: TODO
+        :num_layers: TODO
+        :dropout: TODO
+        :bidirectional: TODO
+
+        """
+        nn.Block.__init__(self)
+        
+        self._rnn_type = rnn_type.upper()
+        self._input_size = input_size
+        self._hidden_size = hidden_size
+        self._output_size = output_size
+        self._num_layers = num_layers
+        self._dropout = dropout
+        self._bidirectional = bidirectional
+       
+        if self._rnn_type == 'LSTM':
+            self.rnn = rnn.LSTM(self._hidden_size, self._num_layers, 'NTC', self._dropout, self._bidirectional, self._input_size)
+        elif self._rnn_type == 'GRU':
+            self.rnn = rnn.GRU(self._hidden_size, self.num_layers=, 'NTC', self._dropout, self._bidirectional, self._input_size)
+
+        self.linear = nn.Dense(self._output_size)
+
+    def forward(self, seq):
+        """TODO: Docstring for forward.
+
+        :seq: TODO
+        :returns: TODO
+
+        """
+        batch_size = seq.shape[0]
+        begin_state = self.rnn.begin_state(batch_size=batch_size=)
+
+        output, hidden = self.rnn(seq, begin_state)
+
+

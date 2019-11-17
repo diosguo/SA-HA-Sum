@@ -9,13 +9,13 @@ from .encoder import ParseEncoder
 from .decoder import BaseDecoder
 from mxnet import cpu
 
+
 class BaseModel(Block):
     """
 
     BaseLine 模型，使用论文Encoder，普通LSTMDecoder，使用Sentence级Attention，无Pointer及Coverage
 
     """
-
     def __init__(self, vocab, vocab_tag, model_params,ctx=cpu(0)):
         """
 
@@ -132,3 +132,74 @@ class Model(object):
                 loss_sum += loss.asscalar()
             print('epoch %d, loss= %.3f' % (epoch + 1, loss_sum / len(data)))
         self.model.collect_params().save('')
+
+
+class Seq2SeqRNN(nn.Block):
+
+    """implemention of alesee seq2seq and beyond with mxnet"""
+
+    def __init__(self, rnn_type, input_size, emb_size, hidden_size, batch_size, output_size, max_tgt_len, attention_type, tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1, encoder_drop=(0.2,0.3), decoder_drop=(0.2,0.3),bidirectional=True, bias=False, teacher_forcing=True):
+        """TODO: to be defined.
+
+        :rnn_type: TODO
+        :input_size: TODO
+        :emb_size: TODO
+        :hidden_size: TODO
+        :batch_size: TODO
+        :output_size: TODO
+        :max_tgt_len: TODO
+        :attention_type: TODO
+        :tied_weight_type: TODO
+        :pre_trained_vector: TODO
+        :pre_trained_vector_type: TODO
+        :padding_id: TODO
+        :num_layers: TODO
+        :encoder_drop: TODO
+        :decoder_drop: TODO
+        :bidirectional: TODO
+        :bias: TODO
+        :teacher_forcing: TODO
+
+        """
+        nn.Block.__init__(self)
+        rnn_type, attention_type, tied_weight_type = rnn_type.upper(), attention_type.title(), tied_weight_type.lower()
+        if rnn_type in ['LSTM','GRU']:
+            self._rnn_type = rnn_type
+        else:
+            raise ValueError("""Invalid option for 'rnn_type' was supplied, options are ['LSTM','GRU']""")
+        
+        if attention_type in ['Luong','Bahdanau']:
+            self.attention_type = attention_type
+        else:
+            raise ValueError("""Invalid option for 'attention_type', options are ['Luong','Bahdanau']""")
+
+        if tied_weight_type in ['three_way','two_way']:
+            self.tied_weight_type = tied_weight_type
+        else:
+            raise ValueError("""Invalid option for 'tied_weight_type' options are ['three_way','two_way']""")
+
+        self.input_size = input_size
+        self.emb_size = emb_size
+        self.hidden_size = hidden_size//2
+        self.batch_size = batch_size
+        self.output_size = output_size
+        self.max_tgt_len = max_tgt_len
+        self.pre_trained_vector = pre_trained_vector
+        self.pre_trained_vector_type = pre_trained_vector_type
+        self.padding_id = padding_id
+        self.num_layers = num_layers
+        self.encoder_drop = encoder_drop
+        self.decoder_drop = decoder_drop
+        self.bidirectional = bidirectional
+        self.bias = bias
+        self.teacher_forcing = teacher_forcing
+        
+        if self.teacher_forcing:
+            self.force_prob = 0.5
+
+        if self.bidirectional:
+            self.num_directions=2
+        else:
+            self.num_directions = 1
+
+        #TODO Encoder and Decoder
