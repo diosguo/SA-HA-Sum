@@ -1,6 +1,7 @@
+import random
 from mxnet.gluon import nn, rnn
 from mxnet import nd
-from .attention import BahdanauAttention
+from attentions import BahdanauAttention, LuongAttention
 
 
 class BaseDecoder(nn.Block):
@@ -59,3 +60,82 @@ class BaseDecoder(nn.Block):
             word_dist = nd.softmax(word_dist)
             decoder_outputs.append(word_dist)
         return nd.stack(*decoder_outputs)
+
+
+class RNNDecoder(nn.Block):
+
+    """Docstring for RNNDecoder. """
+
+    def __init__(self, rnn_type, hidden_size, emb_size, output_size, dropout, target_len, direction_num, teaching_force, force_prob):
+        """TODO: to be defined.
+
+        :hidden_size: TODO
+        :emb_size: TODO
+        :dropout: TODO
+        :target_len: TODO
+
+        """
+        nn.Block.__init__(self)
+
+        self.hidden_size = hidden_size
+        self.emb_size = emb_size
+        self.dropout = dropout
+        self.target_len = target_len
+        self.direction_num = direction_num 
+        self.teaching_force = teaching_force
+        self.force_prob = force_prob
+
+        rnn_type = rnn_type.upper()
+
+        if rnn_type == 'LSTM':
+            self.rnn = rnn.LSTM(hidden_size, layout='NTC', dropout=dropout)
+        elif rnn_type == 'GRU':
+            self.rnn = rnn.GRU(hidden_size, layout='NTC', dropout=dropout)
+        else:
+            raise ValueError('Unspport rnn type %s'%rnn_type)
+
+        self.attention = LuongAttention(64)
+
+        self.input_linear = nn.Dense(emb_size)
+        self.output_layer = nn.Dense(output_size)
+
+
+    def forward(self, batch_size, encoder_output, decoder_hidden, y):
+        """TODO: Docstring for forward.
+
+        :batch_size: TODO
+        :encoder_output: TODO
+        :encoder_hidden: TODO
+        :y: TODO
+        :returns: TODO
+
+        """
+        
+        output_seq = []
+
+        decoder_input =y[0]
+
+        for i in self.target_len:
+            atten_weight, atten_context = self.attention(decoder_input, encoder_output)
+            context = self.input_linear(nd.concat(decoder_input, atten_context))
+            decoder_output, decoder_hidden = self.rnn(context, decoder_hidden)
+            
+            output = self.output_layer(decoder_output)
+
+            decoder_input = output
+
+            if self.teaching_force:
+                if y is not None and round(random.random(),1) < self.force_prob:
+                    if i < len(y):
+                        decoder_input = y[i]
+
+        return nd.stack(*output_seq)
+
+
+                    
+            
+            
+
+
+                
+            

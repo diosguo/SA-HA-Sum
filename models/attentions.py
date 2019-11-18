@@ -44,3 +44,37 @@ class BahdanauAttention(nn.Block):
         context_vector = nd.sum(context_vector, axis=0)
         context_vector = nd.expand_dims(context_vector,axis=0)
         return context_vector, attention_weights
+
+
+class LuongAttention(nn.Block):
+
+    """Docstring for LuongAttention. """
+
+    def __init__(self, units):
+        """TODO: to be defined.
+
+        :units: TODO
+
+        """
+        nn.Block.__init__(self)
+
+        self._units = units
+
+    def forward(self, decoder_output, encoder_output):
+        """TODO: Docstring for forward.
+
+        :decoder_output: TODO
+        :encoder_output: TODO
+        :returns: TODO
+
+        """
+        
+        decoder_output = decoder_output.transpose([0,2,1])
+
+        score = nd.batch_dot(encoder_output, decoder_output)
+
+        weight = nd.softmax(score,axis=1)
+
+        context = nd.batch_dot(nd.transpose(weight,[0,2,1]), encoder_output)
+
+        return nd.squeeze(weight), context
