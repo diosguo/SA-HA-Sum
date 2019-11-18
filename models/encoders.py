@@ -131,4 +131,6 @@ class RNNEncoder(nn.Block):
 
         output, hidden = self.rnn(seq, begin_state)
 
+        return output, hidden
+
 

@@ -5,8 +5,8 @@ from mxnet import nd, autograd
 from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
-from .encoder import ParseEncoder
-from .decoder import BaseDecoder
+from encoders import RNNEncoder, ParseEncoder
+from .decoders import BaseDecoder
 from mxnet import cpu
 
 
@@ -202,4 +202,28 @@ class Seq2SeqRNN(nn.Block):
         else:
             self.num_directions = 1
 
+
+        self.encoder_dropout = nn.Dropout(self.encoder_drop[0])
+        self.encoder_embedding_layer = nn.Embedding(self.input_size, self.emb_size)
+
+        if self.pre_trained_vector:
+            pass
+        
+
         #TODO Encoder and Decoder
+        self.encoder = RNNEncoder(
+            rnn_type,
+            input_size,
+            self.hidden_size,
+            self.emb_size,
+            self.num_layers, 
+            self.encoder_drop[1], 
+            self.bidirectional
+            )
+        
+        self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
+        self.decoder_embedding_layer = nn.Embedding(self.input_size, self.emb_size)
+
+        
+
+
