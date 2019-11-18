@@ -6,7 +6,7 @@ from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
 from encoders import RNNEncoder, ParseEncoder
-from .decoders import BaseDecoder
+from decoders import BaseDecoder, RNNDecoder
 from mxnet import cpu
 
 
@@ -221,9 +221,35 @@ class Seq2SeqRNN(nn.Block):
             self.bidirectional
             )
         
+        self.decoder = RNNDecoder(
+            rnn_type,
+            self.hidden_size * self.num_directions,
+            self.emb_size,
+            self.output_size,
+            self.decoder_drop,
+            self.max_tgt_len,
+            self.teacher_forcing,
+            self.force_prob
+        )
+
         self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
         self.decoder_embedding_layer = nn.Embedding(self.input_size, self.emb_size)
 
+    def forward(self, source, target):
         
+        encoder_input = self.encoder_embedding_layer(source)
+        encoder_input = self.encoder_dropout(encoder_input)
+        encoder_output, encoder_hidden = self.encoder(encoder_input)
+
+
+        encoder_hidden[0] = encoder_hidden[0].transpose([1,0,2]).reshape([1,self.batch_size, self.hidden_size * 2])
+        encoder_hidden[1] = encoder_hidden[1].transpose([1,0,2]).reshpae([1,self.batch_size, self.hidden_size * 2])
+
+        output = self.decoder(self.batch_size, encoder_output, encoder_hidden, target)
+
+        return output
+
+
+
 
 

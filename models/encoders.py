@@ -130,7 +130,9 @@ class RNNEncoder(nn.Block):
         begin_state = self.rnn.begin_state(batch_size=batch_size=)
 
         output, hidden = self.rnn(seq, begin_state)
-
+        # hidden[0] = nd.transpose(hidden[0],[1,0,2])
+        # hidden[1] = nd.transpose(hidden[1], [1,0,2])
+        
         return output, hidden
 
 
