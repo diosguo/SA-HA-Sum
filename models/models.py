@@ -50,6 +50,11 @@ class Model(object):
     def __init__(self, mode, vocab_path, vocab_tag_path, model_param, original_path, ctx=cpu(), summary_path=None):
         """
 
+        # TODO 选择模型的编码器解码器部分
+        # TODO Encoder: Parsed | RNN
+        # TODO Decoder: Headline | RNN
+        # TODO Decoder_RNN_TYPE: DLSTM | LSMT | GRU
+
         根据参数与模式，构建模型
 
         :param mode: train|decode|test 控制当前模型的用途

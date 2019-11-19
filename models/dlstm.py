@@ -51,7 +51,7 @@ class DLSTMCell(rnn.LSTMCell):
 
         to_input = F.elemwise_mul(in_gate, in_transform, name=prefix+'mul0')
         next_c = F.elemwise_sub(
-                F.elemwise_mul(forget_gate, states[1][0], name=prefix+'mul1'),
+                F.elemwise_mul(forget_gate, states[1], name=prefix+'mul1'),
                 to_input,
                 name=prefix+'minus0'
                 )
@@ -59,13 +59,65 @@ class DLSTMCell(rnn.LSTMCell):
         next_s = F.elemwise_add(
                     F.elemwise_mul(
                         F.elemwise_sub(ones, forget_gate, name=prefix+'minus1'),
-                        states[1][1], name=prefix+'mul2'
+                        states[2], name=prefix+'mul2'
                     ),
                     to_input,name=prefix+'add'
                 )
         next_h = F.elemwise_mul(out_gate, F.Activation(next_c, act_type=self._activation, name=prefix+'activation0'), name=prefix+'out')
 
-        return next_h, [next_h, [next_c, next_s]]
+        return next_h, [next_h, next_c, next_s]
+
+
+
+    def state_info(self, batch_size=0):
+        return [{'shape': (batch_size, self._hidden_size), '__layout__': 'NC'},
+                {'shape': (batch_size, self._hidden_size), '__layout__': 'NC'},
+                {'shape': (batch_szie, self._hidden_size), '__layout__': 'NC'}]
+
+
+
+class DLSTM(nn.Block):
+
+    """Docstring for DLSTM. """
+
+    def __init__(self, hidden_size, dropout, state=None):
+        """TODO: to be defined.
+        
+        layout: NTC
+
+        :hidden_size: TODO
+        :dropout: TODO
+        :state: TODO
+
+        """
+        nn.Block.__init__(self)
+
+        self.cell = DLSTMCell(hidden_size)
+
+    def forward(self, x, state=None):
+        """TODO: Docstring for forward.
+
+        :x: TODO
+        :state: TODO
+        :returns: TODO
+
+        """
+        outputs = []
+        hidden = x[:,0] 
+        if state = None:
+            state = self.cell.begin_state(batch_size=x.shape[0])
+
+        for i in range(x.shape[1]):
+            hidden, state = self.cell(hidden, state)
+            outputs.append(hidden)
+
+
+        
+        return nd.stack(*output, dim=1)
+        
+
+        
+
 
 
 if __name__ == "__main__":
