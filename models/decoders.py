@@ -2,7 +2,7 @@ import random
 from mxnet.gluon import nn, rnn
 from mxnet import nd
 from attentions import BahdanauAttention, LuongAttention
-
+from dlstm import DLSTMCell
 
 class BaseDecoder(nn.Block):
     """
@@ -86,10 +86,14 @@ class RNNDecoder(nn.Block):
 
         rnn_type = rnn_type.upper()
 
+        self.rnn_type = rnn_type.upper()
+
         if rnn_type == 'LSTM':
             self.rnn = rnn.LSTM(hidden_size, layout='NTC', dropout=dropout)
         elif rnn_type == 'GRU':
             self.rnn = rnn.GRU(hidden_size, layout='NTC', dropout=dropout)
+        elif rnn_type == 'DLSTM':
+            self.rnn = DLSTMCell(hidden_size)
         else:
             raise ValueError('Unspport rnn type %s'%rnn_type)
 

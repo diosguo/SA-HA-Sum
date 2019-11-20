@@ -92,10 +92,9 @@ class RNNEncoder(nn.Block):
 
     """Encoder with LSTM or GRU"""
 
-    def __init__(self,rnn_type, input_size, hidden_size, output_size, num_layers, dropout, bidirectional=True):
+    def __init__(self,rnn_type, hidden_size, output_size, num_layers, dropout, bidirectional=True):
         """TODO: to be defined.
 
-        :input_size: TODO
         :hidden_size: TODO
         :num_layers: TODO
         :dropout: TODO
@@ -105,7 +104,6 @@ class RNNEncoder(nn.Block):
         nn.Block.__init__(self)
         
         self._rnn_type = rnn_type.upper()
-        self._input_size = input_size
         self._hidden_size = hidden_size
         self._output_size = output_size
         self._num_layers = num_layers

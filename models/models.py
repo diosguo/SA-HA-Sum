@@ -77,7 +77,7 @@ class Seq2SeqRNN(nn.Block):
 
     """implemention of alesee seq2seq and beyond with mxnet"""
 
-    def __init__(self, rnn_type, input_size, emb_size, hidden_size, batch_size, output_size, max_tgt_len, attention_type, tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1, encoder_drop=(0.2,0.3), decoder_drop=(0.2,0.3),bidirectional=True, bias=False, teacher_forcing=True):
+    def __init__(self, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type, tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1, encoder_drop=(0.2,0.3), decoder_drop=(0.2,0.3),bidirectional=True, bias=False, teacher_forcing=True):
         """TODO: to be defined.
 
         :rnn_type: TODO
@@ -100,6 +100,7 @@ class Seq2SeqRNN(nn.Block):
         :teacher_forcing: TODO
 
         """
+
         nn.Block.__init__(self)
         rnn_type, attention_type, tied_weight_type = rnn_type.upper(), attention_type.title(), tied_weight_type.lower()
         if rnn_type in ['LSTM','GRU']:
@@ -117,10 +118,8 @@ class Seq2SeqRNN(nn.Block):
         else:
             raise ValueError("""Invalid option for 'tied_weight_type' options are ['three_way','two_way']""")
 
-        self.input_size = input_size
         self.emb_size = emb_size
         self.hidden_size = hidden_size//2
-        self.batch_size = batch_size
         self.output_size = output_size
         self.max_tgt_len = max_tgt_len
         self.pre_trained_vector = pre_trained_vector
@@ -143,7 +142,7 @@ class Seq2SeqRNN(nn.Block):
 
 
         self.encoder_dropout = nn.Dropout(self.encoder_drop[0])
-        self.encoder_embedding_layer = nn.Embedding(self.input_size, self.emb_size)
+        self.encoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
 
         if self.pre_trained_vector:
             pass
@@ -152,7 +151,6 @@ class Seq2SeqRNN(nn.Block):
         #TODO Encoder and Decoder
         self.encoder = RNNEncoder(
             rnn_type,
-            input_size,
             self.hidden_size,
             self.emb_size,
             self.num_layers, 
@@ -172,11 +170,13 @@ class Seq2SeqRNN(nn.Block):
         )
 
         self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
-        self.decoder_embedding_layer = nn.Embedding(self.input_size, self.emb_size)
+        self.decoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
 
     def forward(self, source, target):
-        
+        self.batch_size = source.shape[0] 
         encoder_input = self.encoder_embedding_layer(source)
+        target = self.decoder_embedding_layer(target)
+
         encoder_input = self.encoder_dropout(encoder_input)
         encoder_output, encoder_hidden = self.encoder(encoder_input)
 
@@ -223,9 +223,12 @@ class Model(object):
         :param model_param: 模型中的超参数
         """
         self.vocab_path = vocab_path
-        self.vocab_tag_path = vocab_tag_path
-        self.vocab_tag = Vocab(vocab_tag_path)
         self.vocab = Vocab(vocab_path)
+
+        if vocab_tag_path is not None:
+            self.vocab_tag_path = vocab_tag_path
+            self.vocab_tag = Vocab(vocab_tag_path)
+
         self.mode = mode
         self.loss = SoftmaxCrossEntropyLoss()
         self.model_param = model_param
@@ -233,6 +236,7 @@ class Model(object):
         if encoder_type == 'rnn':
             pass
             # self.model = Seq2SeqRNN(self.vocab, self.model_param, ctx)
+            self.model = Seq2SeqRNN(self.vocab, 'LSTM', model_param['emb_size'],model_param['hidden_size'],self.vocab.size, 60, 'Bahdanau', 'two_way', None, None, 0, 1)
         elif encoder_type == 'parse':
             self.model = ParseModel(self.vocab, self.vocab_tag, self.model_param, ctx)
         

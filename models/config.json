@@ -9,6 +9,8 @@
   "summary_path": "ttt",
   "model_param": {
     "mode": "train",
+    "emb_size":100,
+    "hidden_size":200,
     "tag_emb_dim": 100,
     "word_emb_dim": 100,
     "encoder_lstm_dim": 200,
