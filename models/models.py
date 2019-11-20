@@ -5,12 +5,43 @@ from mxnet import nd, autograd
 from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
-from encoders import RNNEncoder, ParseEncoder
+from encoders import RNNEncoder, ParseEncoder 
 from decoders import BaseDecoder, RNNDecoder
 from mxnet import cpu
+import os
+import pickle
+from tqdm import tqdm
+from mxboard import SummaryWriter
 
 
 class BaseModel(Block):
+
+    """Docstring for BaseModel. """
+
+    def __init__(self, vocab, model_params, ctx=cpu(0)):
+        """TODO: to be defined.
+
+        :vocab: TODO
+        :vocab_tag: TODO
+        :model_params: TODO
+        :ctx: TODO
+
+        """
+        Block.__init__(self)
+
+        self._vocab = vocab
+        self._model_params = model_params
+        self._ctx = ctx
+
+    def forward(self):
+        """TODO: Docstring for forward.
+        :returns: TODO
+
+        """
+        raise NotImplementedError('BaseModel is a abstract class, you must implemention forward()')
+        
+
+class ParseModel(BaseModel):
     """
 
     BaseLine 模型，使用论文Encoder，普通LSTMDecoder，使用Sentence级Attention，无Pointer及Coverage
@@ -26,117 +57,20 @@ class BaseModel(Block):
         :param model_param: 用来传递模型参数的字典 dict
         """
 
-        super(BaseModel, self).__init__()
-        self.model_params = model_params
-        self.tag_embedding = nn.Embedding(vocab_tag.size, model_params['tag_emb_dim'])
-        self.word_embedding = nn.Embedding(vocab.size, model_params['word_emb_dim'])
-        params = [self.tag_embedding, self.word_embedding, vocab, vocab_tag]
-        self.encoder = ParseEncoder(*params, model_params,ctx=ctx)
-        self.decoder = BaseDecoder(self.word_embedding, vocab, model_params,ctx=ctx)
+        super(ParseModel, self).__init__(vocab, model_params, ctx)
+
+        self._tag_embedding = nn.Embedding(vocab_tag.size, model_params['tag_emb_dim'])
+        self._word_embedding = nn.Embedding(vocab.size, model_params['word_emb_dim'])
+        params = [self._tag_embedding, self._word_embedding, vocab, vocab_tag]
+        self._encoder = ParseEncoder(*params, model_params,ctx=ctx)
+        self._decoder = BaseDecoder(self._word_embedding, vocab, model_params,ctx=ctx)
 
     def forward(self, inputs, targets):
         # print('starting encode')
-        encoder_h, encoder_state, attention_value= self.encoder(inputs)  # N * T * 2C
+        encoder_h, encoder_state, attention_value= self._encoder(inputs)  # N * T * 2C
         encoder_c = encoder_state[1]  # 2 * T * C
         # print('end encode')
-        return self.decoder(targets, encoder_c, encoder_h, attention_value)
-
-
-class Model(object):
-    """
-    最顶层框架，控制模型参数、文件路径、梯度训练
-    """
-
-    def __init__(self, mode, vocab_path, vocab_tag_path, model_param, original_path, ctx=cpu(), summary_path=None):
-        """
-
-        # TODO 选择模型的编码器解码器部分
-        # TODO Encoder: Parsed | RNN
-        # TODO Decoder: Headline | RNN
-        # TODO Decoder_RNN_TYPE: DLSTM | LSMT | GRU
-
-        根据参数与模式，构建模型
-
-        :param mode: train|decode|test 控制当前模型的用途
-        :param original_path: 被句法解析后的文件路径
-        :param summary_path: 摘要文档的路径
-        :param vocab_path: 词典路径
-        :param vocab_tag_path: 句法解析标记词典路径
-        :param model_param: 模型中的超参数
-        """
-        self.original_path = original_path
-        self.summary_path = summary_path
-        self.vocab_path = vocab_path
-        self.vocab_tag_path = vocab_tag_path
-        self.vocab_tag = Vocab(vocab_tag_path)
-        self.vocab = Vocab(vocab_path)
-        self.mode = mode
-        self.loss = SoftmaxCrossEntropyLoss()
-        self.model_param = model_param
-        self.model = BaseModel(self.vocab, self.vocab_tag, model_param, ctx)
-        self.model.initialize(ctx=ctx)
-        self.ctx = ctx
-        self.trainer = Trainer(self.model.collect_params(), 'adam', {'learning_rate': 0.01})
-
-    def sequence_loss(self, logits, targets, weight=None):
-        """
-
-        计算序列的损失，也就是一个批次的损失（当然这个模型是一个批次）
-
-        :param logits: 预测出的结果
-        :param targets: 真实摘要
-        :param weight: 根据句子长度来的padding weight，训练过程不需要
-        :return: 损失值
-        """
-        if weight is None:
-            logits = nd.reshape(logits, [-1, self.vocab.size])
-        else:
-            logits = logits * weight
-            targets = logits * weight
-        targets = nd.array(targets,ctx=self.ctx)
-        loss = self.loss(logits, targets)
-        loss = loss.sum() / len(targets)
-        return loss
-
-
-    def train_one_step(self, data, optimizer='adam', learning_rate=0.01):
-
-        loss_sum = 0.0
-        for x, y in data:
-
-            with autograd.record():
-                logits = self.model(x, y)
-                loss = self.sequence_loss(logits, y)
-            loss.backward()
-            self.trainer.step(1)
-            loss_sum += loss.asscalar()
-        print('loss= %.3f' % (loss_sum / len(data)))
-        # self.model.collect_params().save('')
-
-    def run(self, epoch_num=15, optimizer='adam', learning_rate=0.01):
-        """
-
-        根据定义好的模型，训练模型
-
-        :param epoch_num: 训练迭代数据轮次
-        :param optimizer:  优化器，或者是优化器名字str
-        :param learning_rate: 学习率
-        :return:
-        """
-
-        trainer = Trainer(self.model.collect_params(), optimizer, {'learning_rate': learning_rate})
-        data = []
-        for epoch in range(epoch_num):
-            loss_sum = 0.0
-            for x, y in data:
-                with autograd.record():
-                    logits = self.model(x, y)
-                    loss = self.sequence_loss(logits, y)
-                loss.backward()
-                trainer.step(1)
-                loss_sum += loss.asscalar()
-            print('epoch %d, loss= %.3f' % (epoch + 1, loss_sum / len(data)))
-        self.model.collect_params().save('')
+        return self._decoder(targets, encoder_c, encoder_h, attention_value)
 
 
 class Seq2SeqRNN(nn.Block):
@@ -253,6 +187,162 @@ class Seq2SeqRNN(nn.Block):
         output = self.decoder(self.batch_size, encoder_output, encoder_hidden, target)
 
         return output
+
+
+class HeadlineModel(nn.Block):
+
+    """Docstring for HeadlineModel. """
+
+    def __init__(self):
+        """TODO: to be defined. """
+        nn.Block.__init__(self)
+
+        
+
+class Model(object):
+    """
+    最顶层框架，控制模型参数、文件路径、梯度训练
+    # DONE 读取数据
+    # TODO 保存模型
+
+    """
+
+    def __init__(self, model_param, vocab_path, mode='train', vocab_tag_path=None, encoder_type='rnn', head_attention=False, deocder_cell='lstm', ctx=cpu()):
+        """
+
+        # TODO 选择模型的编码器解码器部分
+        # TODO Encoder: Parsed | RNN
+        # TODO Decoder: Headline | RNN
+        # TODO Decoder_RNN_TYPE: DLSTM | LSMT | GRU
+
+        根据参数与模式，构建模型
+
+        :param mode: train|decode|test 控制当前模型的用途
+        :param vocab_path: 词典路径
+        :param vocab_tag_path: 句法解析标记词典路径
+        :param model_param: 模型中的超参数
+        """
+        self.vocab_path = vocab_path
+        self.vocab_tag_path = vocab_tag_path
+        self.vocab_tag = Vocab(vocab_tag_path)
+        self.vocab = Vocab(vocab_path)
+        self.mode = mode
+        self.loss = SoftmaxCrossEntropyLoss()
+        self.model_param = model_param
+        self.encoder_type = encoder_type
+        if encoder_type == 'rnn':
+            pass
+            # self.model = Seq2SeqRNN(self.vocab, self.model_param, ctx)
+        elif encoder_type == 'parse':
+            self.model = ParseModel(self.vocab, self.vocab_tag, self.model_param, ctx)
+        
+        self.model.initialize(ctx=ctx)
+        self.ctx = ctx
+        self.trainer = Trainer(self.model.collect_params(), 'adam', {'learning_rate': 0.01})
+        self.global_step = 0
+        self.sw = SummaryWriter('./logs',flush_secs=2)
+
+    def sequence_loss(self, logits, targets, weight=None):
+        """
+
+        计算序列的损失，也就是一个批次的损失（当然这个模型是一个批次）
+
+        :param logits: 预测出的结果
+        :param targets: 真实摘要
+        :param weight: 根据句子长度来的padding weight，训练过程不需要
+        :return: 损失值
+        """
+        if weight is None:
+            logits = nd.reshape(logits, [-1, self.vocab.size])
+        else:
+            logits = logits * weight
+            targets = logits * weight
+        targets = nd.array(targets,ctx=self.ctx)
+        loss = self.loss(logits, targets)
+        loss = loss.sum() / len(targets)
+        return loss
+
+    def train_one_step(self, data, optimizer='adam', learning_rate=0.01):
+
+        loss_sum = 0.0
+        for x, y in data:
+            with autograd.record():
+                logits = self.model(x, y)
+                loss = self.sequence_loss(logits, y)
+            loss.backward()
+            self.trainer.step(1)
+            loss_sum += loss.asscalar()
+        print('loss= %.3f' % (loss_sum / len(data)))
+        # self.model.collect_params().save('')
+
+    def _data_reader(self, batch_size, source_path, target_path):
+
+        source_list= os.listdir(source_path)
+
+        i = 0
+
+        while i+batch_size <= len(source_list):
+            batch_x = []
+            batch_y = []
+            for j in range(batch_size):
+                batch_x.append(pickle.load(open(os.path.join(source_path, source_list[i+j]),'rb')))
+                batch_y.append(pickle.load(open(os.path.join(target_path, source_list[i+j]),'rb')))
+            
+            yield batch_x, batch_y
+        
+    def _data_generator(self, batch_size, source_path, target_path):
+
+        for x, y in self._data_reader(batch_size, source_path, target_path):
+            if batch_size > 1:
+                max_x_len = max(x,key=lambda t: len(t))
+                max_y_len = max(y,key=lambda t: len(t))
+                x = nd.zeros(shape=(batch_size, max_x_len))
+                y = nd.zeros(shape=(batch_size, max_y_len))
+                for i, (xt, yt) in enumerate(zip(x,y)):
+                    x[i,:len(xt)] = nd.array(xt)
+                    y[i,:len(yt)] = nd.array(yt)
+            else:
+                x = nd.array(x)
+                y = nd.array(y)
+            yield x, y
+
+    def train(self, source_path, target_path, batch_size=16, epoch_num=15, optimizer='adam', learning_rate=0.01):
+        """
+
+        根据定义好的模型，训练模型
+
+        :param epoch_num: 训练迭代数据轮次
+        :param optimizer:  优化器，或者是优化器名字str
+        :param learning_rate: 学习率
+        :return:
+        """
+        source_list, target_list = os.listdir(source_path), os.listdir(target_path)
+        if len(source_list) != len(target_list):
+            raise ValueError('source and target file not match')
+        data_size = len(source_list)
+        del source_list
+        del target_list
+
+        if self.encoder_type == 'parse':
+            print('single-pass mode in parse encoder')
+            batch_size = 1
+        
+        trainer = Trainer(self.model.collect_params(), optimizer, {'learning_rate': learning_rate})
+        data = []
+        for epoch in range(epoch_num):
+            loss_sum = 0.0
+            with tqdm(total=data_size) as pbar:
+                for x, y in self._data_generator(batch_size, source_path, target_path):
+                    with autograd.record():
+                        logits = self.model(x, y)
+                        loss = self.sequence_loss(logits, y)
+                    loss.backward()
+                    trainer.step(batch_size)
+                    loss_sum += loss.asscalar()
+                    pbar.update(batch_size)
+                    self.global_step += batch_size
+                print('epoch %d, loss= %.3f' % (epoch + 1, loss_sum / len(data)))
+        self.model.collect_params().save('')
 
 
 

@@ -72,53 +72,53 @@ class DLSTMCell(rnn.LSTMCell):
     def state_info(self, batch_size=0):
         return [{'shape': (batch_size, self._hidden_size), '__layout__': 'NC'},
                 {'shape': (batch_size, self._hidden_size), '__layout__': 'NC'},
-                {'shape': (batch_szie, self._hidden_size), '__layout__': 'NC'}]
+                {'shape': (batch_size, self._hidden_size), '__layout__': 'NC'}]
 
 
 
-class DLSTM(nn.Block):
+# class DLSTM(nn.Block):
 
-    """Docstring for DLSTM. """
+#     """Docstring for DLSTM. """
 
-    def __init__(self, hidden_size, dropout, state=None):
-        """TODO: to be defined.
+#     def __init__(self, hidden_size, dropout, state=None):
+#         """TODO: to be defined.
         
-        layout: NTC
+#         layout: NTC
 
-        :hidden_size: TODO
-        :dropout: TODO
-        :state: TODO
+#         :hidden_size: TODO
+#         :dropout: TODO
+#         :state: TODO
 
-        """
-        nn.Block.__init__(self)
+#         """
+#         nn.Block.__init__(self)
 
-        self.cell = DLSTMCell(hidden_size)
+#         self.cell = DLSTMCell(hidden_size)
 
-    def forward(self, x, state=None):
-        """TODO: Docstring for forward.
+#     def forward(self, x, state=None):
+#         """TODO: Docstring for forward.
 
-        :x: TODO
-        :state: TODO
-        :returns: TODO
+#         :x: TODO
+#         :state: TODO
+#         :returns: TODO
 
-        """
-        outputs = []
-        hidden = x[:,0] 
-        if state = None:
-            state = self.cell.begin_state(batch_size=x.shape[0])
+#         """
+#         outputs = []
+#         hidden = x[:,0] 
+#         if state = None:
+#             state = self.cell.begin_state(batch_size=x.shape[0])
 
-        for i in range(x.shape[1]):
-            hidden, state = self.cell(hidden, state)
-            outputs.append(hidden)
+#         for i in range(x.shape[1]):
+#             hidden, state = self.cell(hidden, state)
+#             outputs.append(hidden)
 
-
-        
-        return nd.stack(*output, dim=1)
-        
 
         
+#         return nd.stack(*output, dim=1)
+        
+
+        
 
 
 
-if __name__ == "__main__":
-    lstm = DLSTMCell()
+# if __name__ == "__main__":
+#     lstm = DLSTMCell()
