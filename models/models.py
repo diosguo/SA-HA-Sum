@@ -6,7 +6,7 @@ from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
 from .encoders import RNNEncoder, ParseEncoder 
-from .decoders import BaseDecoder, RNNDecoder
+from .decoders import BaseDecoder, RNNDecoder, HeadDecoder
 from mxnet import cpu
 import os
 import pickle
@@ -97,6 +97,7 @@ class Seq2SeqRNN(nn.Block):
         else:
             raise ValueError("""Invalid option for 'tied_weight_type' options are ['three_way','two_way']""")
 
+        self.vocab = vocab
         self.emb_size = emb_size
         self.hidden_size = hidden_size//2
         self.output_size = output_size
@@ -137,7 +138,7 @@ class Seq2SeqRNN(nn.Block):
             self.bidirectional
             )
         
-        self.decoder = RNNDecoder(
+        self.decoder = HeadDecoder(
             'DLSTM',
             self.hidden_size * self.num_directions,
             self.emb_size,
@@ -151,7 +152,7 @@ class Seq2SeqRNN(nn.Block):
         self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
         self.decoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
 
-    def forward(self, source, target):
+    def forward(self, source, target, head_lda):
         self.batch_size = source.shape[0] 
         encoder_input = self.encoder_embedding_layer(source)
         target = self.decoder_embedding_layer(target)
@@ -159,24 +160,13 @@ class Seq2SeqRNN(nn.Block):
         encoder_input = self.encoder_dropout(encoder_input)
         encoder_output, encoder_hidden = self.encoder(encoder_input)
 
-
         encoder_hidden[0] = encoder_hidden[0].transpose([1,0,2]).reshape([1,self.batch_size, self.hidden_size * 2])
         encoder_hidden[1] = encoder_hidden[1].transpose([1,0,2]).reshpae([1,self.batch_size, self.hidden_size * 2])
 
-        output = self.decoder(self.batch_size, encoder_output, encoder_hidden, target)
+        output = self.decoder(self.batch_size, encoder_output, encoder_hidden, head_lda, target)
 
         return output
-
-
-class HeadlineModel(nn.Block):
-
-    """Docstring for HeadlineModel. """
-
-    def __init__(self):
-        """TODO: to be defined. """
-        nn.Block.__init__(self)
-
-        
+   
 
 class Model(object):
     """

@@ -1,8 +1,12 @@
 import os
+import sys
 import json
-from ..models.vocab import Vocab
+sys.path.append('../')
+from models.vocab import Vocab
 import pickle
 from tqdm import tqdm
+
+
 
 # We use these to separate the summary sentences in the .bin datafiles
 SENTENCE_START = '<s>'
@@ -86,12 +90,19 @@ def get_art_abs(story_file):
 
 if __name__ == '__main__':
     vocab = Vocab('../data/vocab')
-    file_list = os.listdir(r'D:\Projects\cnn_stories_tokenized')
-    for file in tqdm(file_list):
-        articles, abstracts = get_art_abs(os.path.join(r'D:\Projects\cnn_stories_tokenized', file))
-        
-        abstracts = list(map(int, abstracts.split(' ')))
-        articles = list(map(int, articles.split(' ')))
+    tokenized_path = '/home/xuyang/data/tokenized/cnn_stories_tokenized'
+    article_path = '/home/xuyang/data/articles'
+    abstract_path = '/home/xuyang/data/abstracts'
+    file_list = os.listdir(tokenized_path)
 
-        pickle.dump(articles, open(os.path.join(r'path_to_articles', file),'wb'))
-        pickle.dump(abstracts, open(os.path.join(r'D:\Projects\cnn_summaries', file), 'wb'))
+    for file in tqdm(file_list, ncols=10):
+        articles_line, abstracts_line = get_art_abs(os.path.join(tokenized_path, file))
+        
+        abstracts = list(map(int, abstracts_line.split()))
+        try:
+            articles = list(map(int, articles_line.split()))
+        except:
+            print('#'+articles_line+'#')
+            break
+        pickle.dump(articles, open(os.path.join(article_path, file),'wb'))
+        pickle.dump(abstracts, open(os.path.join(abstract_path, file), 'wb'))
