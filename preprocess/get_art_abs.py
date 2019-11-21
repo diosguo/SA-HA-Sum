@@ -1,6 +1,6 @@
 import os
 import json
-from parse_summ.parse_summarization_model.vocab import Vocab
+from ..models.vocab import Vocab
 import pickle
 from tqdm import tqdm
 
@@ -47,7 +47,7 @@ def word2id(line):
     return ids
 
 
-def get_abs(story_file):
+def get_art_abs(story_file):
     lines = read_text_file(story_file)
 
     # Lowercase everything
@@ -77,15 +77,21 @@ def get_abs(story_file):
     # Make abstract into a signle string, putting <s> and </s> tags around the sentences
     abstract = ' '.join(["%s %s %s" % (vocab.word2id('<s>'), sent, vocab.word2id('</s>')) for sent in highlights])
     abstract = '%s %s %s' % (vocab.word2id(vocab.DECODING_START), abstract, vocab.word2id(vocab.DECODING_STOP))
-    return abstract
+    
+    article = ' '.join(["%s %s %s" % (vocab.word2id('<s>'), sent, vocab.word2id('</s>')) for sent in article_lines])
+    article = '%s %s %s' % (vocab.word2id(vocab.DECODING_START), article, vocab.word2id(vocab.DECODING_STOP))
+    
+    return article, abstract
 
 
 if __name__ == '__main__':
-    config = json.load(open("../config.json", 'r'))
-    vocab = Vocab(config['vocab_path'])
-    vocab_tag = Vocab(config['vocab_tag_path'])
-    file_list = os.listdir('D:\Projects\cnn_stories_tokenized')
+    vocab = Vocab('../data/vocab')
+    file_list = os.listdir(r'D:\Projects\cnn_stories_tokenized')
     for file in tqdm(file_list):
-        abstract = get_abs(os.path.join('D:\Projects\cnn_stories_tokenized', file))
-        abstract = list(map(int, abstract.split(' ')))
-        pickle.dump(abstract, open(os.path.join('D:\Projects\cnn_summaries', file), 'wb'))
+        articles, abstracts = get_art_abs(os.path.join(r'D:\Projects\cnn_stories_tokenized', file))
+        
+        abstracts = list(map(int, abstracts.split(' ')))
+        articles = list(map(int, articles.split(' ')))
+
+        pickle.dump(articles, open(os.path.join(r'path_to_articles', file),'wb'))
+        pickle.dump(abstracts, open(os.path.join(r'D:\Projects\cnn_summaries', file), 'wb'))
