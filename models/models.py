@@ -5,8 +5,8 @@ from mxnet import nd, autograd
 from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
-from encoders import RNNEncoder, ParseEncoder 
-from decoders import BaseDecoder, RNNDecoder
+from .encoders import RNNEncoder, ParseEncoder 
+from .decoders import BaseDecoder, RNNDecoder
 from mxnet import cpu
 import os
 import pickle
@@ -77,29 +77,8 @@ class Seq2SeqRNN(nn.Block):
 
     """implemention of alesee seq2seq and beyond with mxnet"""
 
-    def __init__(self, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type, tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1, encoder_drop=(0.2,0.3), decoder_drop=(0.2,0.3),bidirectional=True, bias=False, teacher_forcing=True):
-        """TODO: to be defined.
+    def __init__(self, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type, tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1, encoder_drop=(0.2,0.3), decoder_drop=(0.2,0.3),bidirectional=True, bias=False, teacher_forcing=True, ctx=cpu()):
 
-        :rnn_type: TODO
-        :input_size: TODO
-        :emb_size: TODO
-        :hidden_size: TODO
-        :batch_size: TODO
-        :output_size: TODO
-        :max_tgt_len: TODO
-        :attention_type: TODO
-        :tied_weight_type: TODO
-        :pre_trained_vector: TODO
-        :pre_trained_vector_type: TODO
-        :padding_id: TODO
-        :num_layers: TODO
-        :encoder_drop: TODO
-        :decoder_drop: TODO
-        :bidirectional: TODO
-        :bias: TODO
-        :teacher_forcing: TODO
-
-        """
 
         nn.Block.__init__(self)
         rnn_type, attention_type, tied_weight_type = rnn_type.upper(), attention_type.title(), tied_weight_type.lower()
@@ -159,7 +138,7 @@ class Seq2SeqRNN(nn.Block):
             )
         
         self.decoder = RNNDecoder(
-            rnn_type,
+            'DLSTM',
             self.hidden_size * self.num_directions,
             self.emb_size,
             self.output_size,
@@ -236,7 +215,7 @@ class Model(object):
         if encoder_type == 'rnn':
             pass
             # self.model = Seq2SeqRNN(self.vocab, self.model_param, ctx)
-            self.model = Seq2SeqRNN(self.vocab, 'LSTM', model_param['emb_size'],model_param['hidden_size'],self.vocab.size, 60, 'Bahdanau', 'two_way', None, None, 0, 1)
+            self.model = Seq2SeqRNN(self.vocab, 'LSTM', model_param['emb_size'],model_param['hidden_size'],self.vocab.size, 60, 'Bahdanau', 'two_way', None, None, 0, 1, ctx=ctx)
         elif encoder_type == 'parse':
             self.model = ParseModel(self.vocab, self.vocab_tag, self.model_param, ctx)
         

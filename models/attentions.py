@@ -78,3 +78,4 @@ class LuongAttention(nn.Block):
         context = nd.batch_dot(nd.transpose(weight,[0,2,1]), encoder_output)
 
         return nd.squeeze(weight), context
+

@@ -113,7 +113,7 @@ class RNNEncoder(nn.Block):
         if self._rnn_type == 'LSTM':
             self.rnn = rnn.LSTM(self._hidden_size, self._num_layers, 'NTC', self._dropout, self._bidirectional, self._input_size)
         elif self._rnn_type == 'GRU':
-            self.rnn = rnn.GRU(self._hidden_size, self.num_layers=, 'NTC', self._dropout, self._bidirectional, self._input_size)
+            self.rnn = rnn.GRU(self._hidden_size, self.num_layers, 'NTC', self._dropout, self._bidirectional, self._input_size)
 
         self.linear = nn.Dense(self._output_size)
 
@@ -125,7 +125,7 @@ class RNNEncoder(nn.Block):
 
         """
         batch_size = seq.shape[0]
-        begin_state = self.rnn.begin_state(batch_size=batch_size=)
+        begin_state = self.rnn.begin_state(batch_size=batch_size)
 
         output, hidden = self.rnn(seq, begin_state)
         # hidden[0] = nd.transpose(hidden[0],[1,0,2])
