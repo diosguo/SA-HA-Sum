@@ -138,7 +138,7 @@ class RNNDecoder(nn.Block):
 
 class HeadDecoder(nn.Block):
     
-    def __init__(self, rnn_type, hidden_size, emb_size, output_size, dropout, target_len, teaching_force, force_prob, ctx):
+    def __init__(self, rnn_type, hidden_size, embedding, emb_size, output_size, dropout, target_len, teaching_force, force_prob, ctx):
         """TODO: to be defined.
 
         :hidden_size: TODO
@@ -149,6 +149,7 @@ class HeadDecoder(nn.Block):
         """
         nn.Block.__init__(self)
 
+        self.embedding = embedding
         self.hidden_size = hidden_size
         self.emb_size = emb_size
         self.dropout = dropout
@@ -183,7 +184,11 @@ class HeadDecoder(nn.Block):
 
         output_seq = []
 
-        decoder_input =y[0]
+        if y is None:
+            decoder_input = self.embedding(nd.array([5]))
+            decoder_input = decoder_input.squeeze(axis=0)
+        else:
+            decoder_input =y[0]
         decoder_input = nd.stack(decoder_input)
         
         if self.rnn_type != 'DLSTM':
@@ -209,7 +214,7 @@ class HeadDecoder(nn.Block):
             
             # (1, 32) (1, 64) (1, 1) (1, 64) (1, 64) (1, 64)
 
-
+            # print(decoder_input, head_attn_context, decoder_hidden[1], decoder_hidden[2])
             attn_input = nd.concat(decoder_input, head_attn_context, decoder_hidden[1], decoder_hidden[2])
             
             # print('attn_input:', attn_input.shape)
@@ -230,20 +235,15 @@ class HeadDecoder(nn.Block):
             # print(output.shape)
             decoder_input = decoder_output
 
-            if self.teaching_force:
-                if y is not None and round(random.random(),1) < self.force_prob:
-                    if i < len(y):
-                        decoder_input = y[i]
-                        decoder_input = nd.stack(decoder_input)
+            if y is not None:
+                if self.teaching_force:
+                    if round(random.random(),1) < self.force_prob:
+                        if i < len(y):
+                            decoder_input = y[i]
+                            decoder_input = nd.stack(decoder_input)
+            else:
+                # print(output)
+                pass
         return nd.concat(*output_seq, dim=0)
         # return nd.stack(*output_seq, axis=1)
-
-
-
-                    
-            
-            
-
-
-                
             

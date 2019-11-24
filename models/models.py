@@ -139,9 +139,13 @@ class Seq2SeqRNN(nn.Block):
             ctx=ctx
             )
         
+
+        self.decoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
+        
         self.decoder = HeadDecoder(
             'DLSTM',
             self.hidden_size * self.num_directions,
+            self.decoder_embedding_layer,
             self.emb_size,
             self.output_size,
             self.decoder_drop,
@@ -152,12 +156,12 @@ class Seq2SeqRNN(nn.Block):
         )
 
         self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
-        self.decoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
 
     def forward(self, source, target, head_lda):
         self.batch_size = source.shape[0] 
         encoder_input = self.encoder_embedding_layer(source)
-        target = self.decoder_embedding_layer(target)
+        if target is not None:
+            target = self.decoder_embedding_layer(target)
 
         encoder_input = self.encoder_dropout(encoder_input)
         encoder_output, encoder_hidden = self.encoder(encoder_input)
@@ -345,6 +349,30 @@ class Model(object):
                 if loss_mean < best_score:
                     self.model.collect_params().save('best.model')
 
+
+    def decode(self, source_path, lda_path, model_path):
+        """TODO: Docstring for decode.
+
+        :source_path: TODO
+        :target_path: TODO
+        :lda_path: TODO
+        :returns: TODO
+
+        """
+        self.model.collect_params().load(model_path)
+        source_filenames = os.listdir(source_path)
+
+        res = []
+
+        for filename in tqdm(source_filenames):
+            x = nd.array([pickle.load(open(os.path.join(source_path, filename),'rb'))])
+            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename),'rb'))])
+            logits = self.model(x, None, lda)
+            
+            res.append(logits.argmax(axis=1))
+        print('decode done')
+        return res
+        
 
 
 
