@@ -135,7 +135,8 @@ class Seq2SeqRNN(nn.Block):
             self.emb_size,
             self.num_layers, 
             self.encoder_drop[1], 
-            self.bidirectional
+            self.bidirectional,
+            ctx=ctx
             )
         
         self.decoder = HeadDecoder(
@@ -291,16 +292,16 @@ class Model(object):
         dataset = []
         for filename in source_list:
             
-            x = nd.array([pickle.load(open(os.path.join(source_path, filename),'rb'))])
-            y = nd.array(pickle.load(open(os.path.join(target_path, filename),'rb')))
-            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename),'rb'))])
+            x = nd.array([pickle.load(open(os.path.join(source_path, filename),'rb'))],ctx=self.ctx)
+            y = nd.array(pickle.load(open(os.path.join(target_path, filename),'rb')), ctx=self.ctx)
+            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename),'rb'))],ctx=self.ctx)
             dataset.append([x,y,lda])
             
         return dataset
         
         
         
-    def train(self, source_path, target_path, lda_path, batch_size=16, epoch_num=15, optimizer='adam', learning_rate=0.01):
+    def train(self, source_path, target_path, lda_path, batch_size=16, epoch_num=15, optimizer='adam', learning_rate=0.01, new_train=True):
         """
 
         根据定义好的模型，训练模型
@@ -324,7 +325,8 @@ class Model(object):
         trainer = Trainer(self.model.collect_params(), optimizer, {'learning_rate': learning_rate})
         print('Reading data...')
         data = self._data_generator_one_batch(source_path, target_path, lda_path)
-        
+        if new_train is False:
+            self.model.collect_params().load('best.model', ctx=self.ctx) 
         best_score = 9999
         for epoch in range(epoch_num):
             loss_sum = 0.0

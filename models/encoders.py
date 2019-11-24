@@ -1,4 +1,4 @@
-from mxnet import nd
+from mxnet import nd, cpu
 from mxnet.gluon import Block
 from mxnet.gluon import nn, rnn
 
@@ -92,7 +92,7 @@ class RNNEncoder(nn.Block):
 
     """Encoder with LSTM or GRU"""
 
-    def __init__(self,rnn_type, hidden_size, output_size, num_layers, dropout, bidirectional=True):
+    def __init__(self,rnn_type, hidden_size, output_size, num_layers, dropout, bidirectional=True, ctx=cpu()):
         """TODO: to be defined.
 
         :hidden_size: TODO
@@ -109,6 +109,7 @@ class RNNEncoder(nn.Block):
         self._num_layers = num_layers
         self._dropout = dropout
         self._bidirectional = bidirectional
+        self.ctx = ctx
        
         if self._rnn_type == 'LSTM':
             self.rnn = rnn.LSTM(self._hidden_size, self._num_layers, 'NTC', self._dropout, self._bidirectional)
@@ -125,7 +126,7 @@ class RNNEncoder(nn.Block):
 
         """
         batch_size = seq.shape[0]
-        begin_state = self.rnn.begin_state(batch_size=batch_size)
+        begin_state = self.rnn.begin_state(batch_size=batch_size, ctx=self.ctx)
 
         output, hidden = self.rnn(seq, begin_state)
         # hidden[0] = nd.transpose(hidden[0],[1,0,2])
