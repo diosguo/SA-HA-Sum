@@ -5,7 +5,7 @@ from mxnet import nd, autograd
 from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
-from .encoders import RNNEncoder, ParseEncoder 
+from .encoders import RNNEncoder, ParseEncoder
 from .decoders import BaseDecoder, RNNDecoder, HeadDecoder
 from mxnet import cpu
 import os
@@ -15,7 +15,6 @@ from mxboard import SummaryWriter
 
 
 class BaseModel(Block):
-
     """Docstring for BaseModel. """
 
     def __init__(self, vocab, model_params, ctx=cpu(0)):
@@ -39,7 +38,7 @@ class BaseModel(Block):
 
         """
         raise NotImplementedError('BaseModel is a abstract class, you must implemention forward()')
-        
+
 
 class ParseModel(BaseModel):
     """
@@ -47,7 +46,8 @@ class ParseModel(BaseModel):
     BaseLine 模型，使用论文Encoder，普通LSTMDecoder，使用Sentence级Attention，无Pointer及Coverage
 
     """
-    def __init__(self, vocab, vocab_tag, model_params,ctx=cpu(0)):
+
+    def __init__(self, vocab, vocab_tag, model_params, ctx=cpu(0)):
         """
 
         初始化模型
@@ -62,44 +62,45 @@ class ParseModel(BaseModel):
         self._tag_embedding = nn.Embedding(vocab_tag.size, model_params['tag_emb_dim'])
         self._word_embedding = nn.Embedding(vocab.size, model_params['word_emb_dim'])
         params = [self._tag_embedding, self._word_embedding, vocab, vocab_tag]
-        self._encoder = ParseEncoder(*params, model_params,ctx=ctx)
-        self._decoder = BaseDecoder(self._word_embedding, vocab, model_params,ctx=ctx)
+        self._encoder = ParseEncoder(*params, model_params, ctx=ctx)
+        self._decoder = BaseDecoder(self._word_embedding, vocab, model_params, ctx=ctx)
 
     def forward(self, inputs, targets):
         # print('starting encode')
-        encoder_h, encoder_state, attention_value= self._encoder(inputs)  # N * T * 2C
+        encoder_h, encoder_state, attention_value = self._encoder(inputs)  # N * T * 2C
         encoder_c = encoder_state[1]  # 2 * T * C
         # print('end encode')
         return self._decoder(targets, encoder_c, encoder_h, attention_value)
 
 
 class Seq2SeqRNN(nn.Block):
-
     """implemention of alesee seq2seq and beyond with mxnet"""
 
-    def __init__(self, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type, tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1, encoder_drop=(0.2,0.3), decoder_drop=(0.2,0.3),bidirectional=True, bias=False, teacher_forcing=True, ctx=cpu()):
-
+    def __init__(self, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type,
+                 tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1,
+                 encoder_drop=(0.2, 0.3), decoder_drop=(0.2, 0.3), bidirectional=True, bias=False, teacher_forcing=True,
+                 ctx=cpu()):
 
         nn.Block.__init__(self)
         rnn_type, attention_type, tied_weight_type = rnn_type.upper(), attention_type.title(), tied_weight_type.lower()
-        if rnn_type in ['LSTM','GRU']:
+        if rnn_type in ['LSTM', 'GRU']:
             self._rnn_type = rnn_type
         else:
             raise ValueError("""Invalid option for 'rnn_type' was supplied, options are ['LSTM','GRU']""")
-        
-        if attention_type in ['Luong','Bahdanau']:
+
+        if attention_type in ['Luong', 'Bahdanau']:
             self.attention_type = attention_type
         else:
             raise ValueError("""Invalid option for 'attention_type', options are ['Luong','Bahdanau']""")
 
-        if tied_weight_type in ['three_way','two_way']:
+        if tied_weight_type in ['three_way', 'two_way']:
             self.tied_weight_type = tied_weight_type
         else:
             raise ValueError("""Invalid option for 'tied_weight_type' options are ['three_way','two_way']""")
 
         self.vocab = vocab
         self.emb_size = emb_size
-        self.hidden_size = hidden_size//2
+        self.hidden_size = hidden_size // 2
         self.output_size = output_size
         self.max_tgt_len = max_tgt_len
         self.pre_trained_vector = pre_trained_vector
@@ -111,37 +112,34 @@ class Seq2SeqRNN(nn.Block):
         self.bidirectional = bidirectional
         self.bias = bias
         self.teacher_forcing = teacher_forcing
-        
+
         if self.teacher_forcing:
             self.force_prob = 0.5
 
         if self.bidirectional:
-            self.num_directions=2
+            self.num_directions = 2
         else:
             self.num_directions = 1
-
 
         self.encoder_dropout = nn.Dropout(self.encoder_drop[0])
         self.encoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
 
         if self.pre_trained_vector:
             pass
-        
 
-        #TODO Encoder and Decoder
+        # TODO Encoder and Decoder
         self.encoder = RNNEncoder(
             rnn_type,
             self.hidden_size,
             self.emb_size,
-            self.num_layers, 
-            self.encoder_drop[1], 
+            self.num_layers,
+            self.encoder_drop[1],
             self.bidirectional,
             ctx=ctx
-            )
-        
+        )
 
         self.decoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
-        
+
         self.decoder = HeadDecoder(
             'DLSTM',
             self.hidden_size * self.num_directions,
@@ -158,7 +156,7 @@ class Seq2SeqRNN(nn.Block):
         self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
 
     def forward(self, source, target, head_lda):
-        self.batch_size = source.shape[0] 
+        self.batch_size = source.shape[0]
         encoder_input = self.encoder_embedding_layer(source)
         if target is not None:
             target = self.decoder_embedding_layer(target)
@@ -166,13 +164,245 @@ class Seq2SeqRNN(nn.Block):
         encoder_input = self.encoder_dropout(encoder_input)
         encoder_output, encoder_hidden = self.encoder(encoder_input)
 
-        encoder_hidden[0] = encoder_hidden[0].transpose([1,0,2]).reshape([1,self.batch_size, self.hidden_size * 2])
-        encoder_hidden[1] = encoder_hidden[1].transpose([1,0,2]).reshape([1,self.batch_size, self.hidden_size * 2])
+        encoder_hidden[0] = encoder_hidden[0].transpose([1, 0, 2]).reshape([1, self.batch_size, self.hidden_size * 2])
+        encoder_hidden[1] = encoder_hidden[1].transpose([1, 0, 2]).reshape([1, self.batch_size, self.hidden_size * 2])
 
         output = self.decoder(self.batch_size, encoder_output, encoder_hidden, head_lda, target)
 
         return output
-   
+
+
+class Seq2SeqParseHead(nn.Block):
+    def __init__(self, vocab, vocab_tag, model_params, decoder_drop=(0.2,0.3), ctx=cpu()):
+
+        super(Seq2SeqParseHead, self).__init__()
+
+        self._vocab = vocab
+        self._vocab_tag = vocab_tag
+        self._model_params = model_params
+
+        self._tag_embedding = nn.Embedding(vocab_tag.size, model_params['tag_emb_dim'])
+        self._word_embedding = nn.Embedding(vocab.size, model_params['word_emb_dim'])
+
+        params = [self._tag_embedding, self._word_embedding, vocab, vocab_tag]
+
+        self._encoder = ParseEncoder(*params, model_params, ctx=ctx)
+
+        self._hidden_size = model_params['hidden_size']
+        self._emb_size = model_params['word_emb_dim']
+        self._output_size = self._vocab.size()
+        self._decoder_drop = decoder_drop
+        self.max_tgt_len = 60
+        self.teacher_forcing=True
+        self.force_prob = 0.5
+
+        self.decoder = HeadDecoder(
+            'DLSTM',
+            self._hidden_size * 2,
+            self._word_embedding,
+            self._emb_size,
+            self._output_size,
+            self._decoder_drop,
+            self.max_tgt_len,
+            self.teacher_forcing,
+            self.force_prob,
+            ctx=ctx
+        )
+
+        self.decoder_dropout = nn.Dropout(self._decoder_drop[0])
+
+
+    def forward(self, x, lda, y):
+        encoder_h, encoder_state, attention_value = self._encoder(x)
+
+        return self.decoder(1, encoder_h, encoder_state, lda, y)
+
+
+class ParsedBasedModel(object):
+
+    def __init__(self, model_param, vocab_path, vocab_tab_path, decoder_cell='LSTM', ctx=cpu()):
+        self._model_param = model_param
+        self._vocab_path = vocab_path
+        self._vocab_tag_path = vocab_tab_path
+        self._decoder_cell = decoder_cell
+        self._ctx = ctx
+
+        self._vocab = Vocab(vocab_path)
+        self._vocab_tag = Vocab(vocab_tab_path)
+
+        self._model = ParseModel(self._vocab, self._vocab_tag, self._model_param, ctx)
+
+        self._model.initialize(ctx=ctx)
+
+        self.sw = SummaryWriter('./parsed_based_logs', flush_secs=2)
+
+    def sequence_loss(self, logits, targets, weight=None):
+        """
+
+        计算序列的损失，也就是一个批次的损失（当然这个模型是一个批次）
+
+        :param logits: 预测出的结果
+        :param targets: 真实摘要
+        :param weight: 根据句子长度来的padding weight，训练过程不需要
+        :return: 损失值
+        """
+        if weight is None:
+            logits = nd.reshape(logits, [-1, self.vocab.size])
+        else:
+            logits = logits * weight
+            targets = logits * weight
+        targets = nd.array(targets, ctx=self.ctx)
+        loss = self.loss(logits, targets)
+        loss = loss.sum() / len(targets)
+        return loss
+
+    def get_data(self, source_path, target_path=None):
+        """ one data per batch """
+        file_list = os.listdir(source_path)
+
+        for filename in file_list:
+            x = nd.array(pickle.load(open(os.path.join(source_path, filename), 'rb')))
+            if target_path is not None:
+                y = nd.array(pickle.load(open(os.path.join(target_path, filename), 'rb')))
+                yield x, y
+            else:
+                yield x
+
+    def train(self, source_path, target_path,
+              optimizer='Adam', epoch_num=20, learning_rate=0.0001,
+              save_path='parsed_based.model', new_train=False):
+
+        if new_train is False:
+            self._model.collect_params().load(save_path)
+
+        global_step = 1
+        trainer = Trainer(self._model.collect_params(), optimizer, {'learning_rate':learning_rate})
+        loss = SoftmaxCrossEntropyLoss()
+        data_size = len(os.listdir(source_path))
+        if data_size != len(os.listdir(target_path)):
+            raise ValueError('articles and abstracts files does not match!')
+        best_score = 9999
+        with tqdm(total=data_size) as bar:
+            for epoch in range(epoch_num):
+                loss_sum = 0.0
+                for x, y in self.get_data(source_path, target_path):
+                    with autograd.record():
+                        logits = self._model(x, y)
+                        loss = self.sequence_loss(logits, y)
+                    loss.backward()
+                    trainer.step(1)
+                    loss_sum += loss.asscalar()
+                    self.sw.add_scalar(tag='sequence_loss', value=loss.asscalar(), global_step=global_step)
+                    bar.update(1)
+                    global_step += 1
+                loss_mean = loss_sum / data_size
+                print('epoch {}, loss:{}'.format(epoch, loss_mean))
+                if loss_mean < best_score:
+                    self._model.collect_params().save(save_path)
+
+    def decode(self, source_path):
+        file_list = os.listdir(source_path)
+        res = []
+
+        with tqdm(total=len(file_list)) as bar:
+            for x in self.get_data(source_path):
+                logits = self._model(x)
+                ids = logits.argmax(axis=1).squeeze()
+                res.append(ids.tonumpy())
+                bar.update(1)
+
+        return res
+
+
+class ParsedHeadModel(object):
+    def __init__(self, model_param, vocab_path, vocab_tag_path, ctx=cpu()):
+        self._model_param = model_param
+        self._vocab_path = vocab_path
+        self._vocab_tag_path = vocab_tag_path
+        self._ctx = ctx
+        self._vocab = Vocab(vocab_path)
+        self._vocab_tag = Vocab(vocab_tag_path)
+
+        self._model = Seq2SeqParseHead(self._vocab, self._vocab_tag, model_param,ctx=ctx)
+        self.loss = SoftmaxCrossEntropyLoss()
+        self.sw = SummaryWriter('./parse_head_logs', flush_secs=2)
+
+    def sequence_loss(self, logits, targets, weight=None):
+        """
+
+        计算序列的损失，也就是一个批次的损失（当然这个模型是一个批次）
+
+        :param logits: 预测出的结果
+        :param targets: 真实摘要
+        :param weight: 根据句子长度来的padding weight，训练过程不需要
+        :return: 损失值
+        """
+        if weight is None:
+            logits = nd.reshape(logits, [-1, self._vocab.size])
+        else:
+            logits = logits * weight
+            targets = logits * weight
+        targets = nd.array(targets, ctx=self._ctx)
+        loss = self.loss(logits, targets)
+        loss = loss.sum() / len(targets)
+        return loss
+
+    def _data_generator(self, source_path, lda_path, target_path):
+
+        source_list = os.listdir(source_path)
+
+        dataset = []
+        for filename in source_list:
+
+            x = nd.array([pickle.load(open(os.path.join(source_path, filename), 'rb'))], ctx=self._ctx)
+            y = nd.array(pickle.load(open(os.path.join(target_path, filename), 'rb')), ctx=self._ctx)
+            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename), 'rb'))], ctx=self._ctx)
+            yield x, lda, y
+
+    def train(self, source_path, lda_path, target_path, epoch_num=20, optimizer='adam', learning_rate=0.0001,
+              save_path='ParseHead.model', new_train=False):
+        file_num = os.listdir(source_path)
+        file_num = len(file_num)
+        trainer = Trainer(self._model.collect_params(), optimizer, {'learning_rate':learning_rate})
+        if new_train is False:
+            self._model.collect_params().load(save_path)
+        global_step = 0
+        best_score = 9999
+        for epoch in range(epoch_num):
+            loss_sum = 0.0
+            with tqdm(total=file_num) as bar:
+                for x, lda, y in self._data_generator(source_path, lda_path, target_path):
+                    global_step += 1
+                    with autograd.record():
+                        logits = self._model(x, lda, y)
+                        loss = self.sequence_loss(y, logits)
+
+                    loss.backward()
+                    trainer.step(1)
+                    loss_sum += loss.asscalar()
+                    self.sw.add_scalar('loss',loss.asscalar(),global_step)
+                    bar.update(1)
+            loss_sum = loss_sum / file_num
+            print('Epoch: {}, Loss: {}'.format(epoch+1, loss_sum))
+            if loss_sum < best_score:
+                best_score = loss_sum
+                self._model.collect_params().save(self.save)
+
+    def decode(self, source_path, lda_path, save_path='ParseHead.model'):
+        if save_path is not None:
+            self._model.collect_params().load(save_path)
+        res = []
+        file_list = os.listdir(source_path)
+        file_num = len(file_list)
+
+        for filename in tqdm(file_list):
+            x = nd.array(pickle.load(open(os.path.join(source_path, filename),'rb')))
+            lda = nd.array(pickle.load(open(os.path.join(lda_path, filename),'rb')))
+            logits = self._model(x, lda)
+            ids = logits.argmax(axis=1).squeeze()
+            res.append(ids.tonumpy())
+        return res
+
 
 class Model(object):
     """
@@ -182,7 +412,8 @@ class Model(object):
 
     """
 
-    def __init__(self, model_param, vocab_path, mode='train', vocab_tag_path=None, encoder_type='rnn', head_attention=False, decoder_cell='lstm', ctx=cpu()):
+    def __init__(self, model_param, vocab_path, mode='train', vocab_tag_path=None, encoder_type='rnn',
+                 head_attention=False, decoder_cell='lstm', ctx=cpu()):
         """
 
         # TODO 选择模型的编码器解码器部分
@@ -211,15 +442,16 @@ class Model(object):
         if encoder_type == 'rnn':
             pass
             # self.model = Seq2SeqRNN(self.vocab, self.model_param, ctx)
-            self.model = Seq2SeqRNN(self.vocab, 'LSTM', model_param['emb_size'],model_param['hidden_size'],self.vocab.size, 60, 'Bahdanau', 'two_way', None, None, 0, 1, ctx=ctx)
+            self.model = Seq2SeqRNN(self.vocab, 'LSTM', model_param['emb_size'], model_param['hidden_size'],
+                                    self.vocab.size, 60, 'Bahdanau', 'two_way', None, None, 0, 1, ctx=ctx)
         elif encoder_type == 'parse':
             self.model = ParseModel(self.vocab, self.vocab_tag, self.model_param, ctx)
-        
+
         self.model.initialize(ctx=ctx)
         self.ctx = ctx
         self.trainer = Trainer(self.model.collect_params(), 'adam', {'learning_rate': 0.01})
         self.global_step = 0
-        self.sw = SummaryWriter('./logs',flush_secs=2)
+        self.sw = SummaryWriter('./logs', flush_secs=2)
 
     def sequence_loss(self, logits, targets, weight=None):
         """
@@ -236,7 +468,7 @@ class Model(object):
         else:
             logits = logits * weight
             targets = logits * weight
-        targets = nd.array(targets,ctx=self.ctx)
+        targets = nd.array(targets, ctx=self.ctx)
         loss = self.loss(logits, targets)
         loss = loss.sum() / len(targets)
         return loss
@@ -259,53 +491,50 @@ class Model(object):
 
     def _data_reader(self, batch_size, source_path, target_path):
 
-        source_list= os.listdir(source_path)
+        source_list = os.listdir(source_path)
 
         i = 0
 
-        while i+batch_size <= len(source_list):
+        while i + batch_size <= len(source_list):
             batch_x = []
             batch_y = []
             for j in range(batch_size):
-                batch_x.append(pickle.load(open(os.path.join(source_path, source_list[i+j]),'rb')))
-                batch_y.append(pickle.load(open(os.path.join(target_path, source_list[i+j]),'rb')))
-            
+                batch_x.append(pickle.load(open(os.path.join(source_path, source_list[i + j]), 'rb')))
+                batch_y.append(pickle.load(open(os.path.join(target_path, source_list[i + j]), 'rb')))
+
             yield batch_x, batch_y
-        
+
     def _data_generator(self, batch_size, source_path, target_path):
 
         for x, y in self._data_reader(batch_size, source_path, target_path):
             if batch_size > 1:
-                max_x_len = max(x,key=lambda t: len(t))
-                max_y_len = max(y,key=lambda t: len(t))
+                max_x_len = max(x, key=lambda t: len(t))
+                max_y_len = max(y, key=lambda t: len(t))
                 x = nd.zeros(shape=(batch_size, max_x_len))
                 y = nd.zeros(shape=(batch_size, max_y_len))
-                for i, (xt, yt) in enumerate(zip(x,y)):
-                    x[i,:len(xt)] = nd.array(xt)
-                    y[i,:len(yt)] = nd.array(yt)
+                for i, (xt, yt) in enumerate(zip(x, y)):
+                    x[i, :len(xt)] = nd.array(xt)
+                    y[i, :len(yt)] = nd.array(yt)
             else:
                 x = nd.array(x)
                 y = nd.array(y)
             yield x, y
 
-            
     def _data_generator_one_batch(self, source_path, target_path, lda_path):
-        
-        source_list= os.listdir(source_path)
-        
+
+        source_list = os.listdir(source_path)
+
         dataset = []
         for filename in source_list:
-            
-            x = nd.array([pickle.load(open(os.path.join(source_path, filename),'rb'))],ctx=self.ctx)
-            y = nd.array(pickle.load(open(os.path.join(target_path, filename),'rb')), ctx=self.ctx)
-            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename),'rb'))],ctx=self.ctx)
-            dataset.append([x,y,lda])
-            
+            x = nd.array([pickle.load(open(os.path.join(source_path, filename), 'rb'))], ctx=self.ctx)
+            y = nd.array(pickle.load(open(os.path.join(target_path, filename), 'rb')), ctx=self.ctx)
+            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename), 'rb'))], ctx=self.ctx)
+            dataset.append([x, y, lda])
+
         return dataset
-        
-        
-        
-    def train(self, source_path, target_path, lda_path, batch_size=16, epoch_num=15, optimizer='adam', learning_rate=0.01, new_train=True):
+
+    def train(self, source_path, target_path, lda_path, batch_size=16, epoch_num=15, optimizer='adam',
+              learning_rate=0.01, new_train=True):
         """
 
         根据定义好的模型，训练模型
@@ -325,12 +554,12 @@ class Model(object):
         if self.encoder_type == 'parse':
             print('single-pass mode in parse encoder')
             batch_size = 1
-        
+
         trainer = Trainer(self.model.collect_params(), optimizer, {'learning_rate': learning_rate})
         print('Reading data...')
         data = self._data_generator_one_batch(source_path, target_path, lda_path)
         if new_train is False:
-            self.model.collect_params().load('best.model', ctx=self.ctx) 
+            self.model.collect_params().load('best.model', ctx=self.ctx)
         best_score = 9999
         for epoch in range(epoch_num):
             loss_sum = 0.0
@@ -344,11 +573,11 @@ class Model(object):
                     loss_sum += loss.asscalar()
                     pbar.update(1)
                     self.global_step += 1
-                loss_mean = loss_sum / len(data)
-                print('epoch {}, loss:{}'.format(epoch,loss_mean))
-                if loss_mean < best_score:
-                    self.model.collect_params().save('best.model')
-
+            loss_mean = loss_sum / len(data)
+            print('epoch {}, loss:{}'.format(epoch, loss_mean))
+            if loss_mean < best_score:
+                best_score = loss_mean
+                self.model.collect_params().save('best.model')
 
     def decode(self, source_path, lda_path, model_path):
         """TODO: Docstring for decode.
@@ -365,15 +594,10 @@ class Model(object):
         res = []
 
         for filename in tqdm(source_filenames):
-            x = nd.array([pickle.load(open(os.path.join(source_path, filename),'rb'))])
-            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename),'rb'))])
+            x = nd.array([pickle.load(open(os.path.join(source_path, filename), 'rb'))])
+            lda = nd.array([pickle.load(open(os.path.join(lda_path, filename), 'rb'))])
             logits = self.model(x, None, lda)
-            
+
             res.append(logits.argmax(axis=1))
         print('decode done')
         return res
-        
-
-
-
-
