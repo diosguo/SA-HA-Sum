@@ -6,7 +6,7 @@ from mxnet.gluon import Trainer
 from mxnet.gluon.loss import SoftmaxCrossEntropyLoss
 from .vocab import Vocab
 from .encoders import RNNEncoder, ParseEncoder
-from .decoders import BaseDecoder, RNNDecoder, HeadDecoder
+from .decoders import BaseDecoder, RNNDecoder, HeadDecoder, HeadDecoderBeamSearch
 from mxnet import cpu
 import os
 import pickle
@@ -76,7 +76,7 @@ class ParseModel(BaseModel):
 class Seq2SeqRNN(nn.Block):
     """implemention of alesee seq2seq and beyond with mxnet"""
 
-    def __init__(self, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type,
+    def __init__(self, mode, vocab, rnn_type, emb_size, hidden_size, output_size, max_tgt_len, attention_type,
                  tied_weight_type, pre_trained_vector, pre_trained_vector_type, padding_id, num_layers=1,
                  encoder_drop=(0.2, 0.3), decoder_drop=(0.2, 0.3), bidirectional=True, bias=False, teacher_forcing=True,
                  ctx=cpu()):
@@ -98,6 +98,7 @@ class Seq2SeqRNN(nn.Block):
         else:
             raise ValueError("""Invalid option for 'tied_weight_type' options are ['three_way','two_way']""")
 
+        self.mode = mode
         self.vocab = vocab
         self.emb_size = emb_size
         self.hidden_size = hidden_size // 2
@@ -140,18 +141,33 @@ class Seq2SeqRNN(nn.Block):
 
         self.decoder_embedding_layer = nn.Embedding(vocab.size, self.emb_size)
 
-        self.decoder = HeadDecoder(
-            'DLSTM',
-            self.hidden_size * self.num_directions,
-            self.decoder_embedding_layer,
-            self.emb_size,
-            self.output_size,
-            self.decoder_drop,
-            self.max_tgt_len,
-            self.teacher_forcing,
-            self.force_prob,
-            ctx=ctx
-        )
+        if self.mode == 'train':
+            self.decoder = HeadDecoder(
+                'DLSTM',
+                self.hidden_size * self.num_directions,
+                self.decoder_embedding_layer,
+                self.emb_size,
+                self.output_size,
+                self.decoder_drop,
+                self.max_tgt_len,
+                self.teacher_forcing,
+                self.force_prob,
+                ctx=ctx
+            )
+        else:
+            self.decoder = HeadDecoderBeamSearch(
+                4,
+                'DLSTM',
+                self.hidden_size * self.num_directions,
+                self.decoder_embedding_layer,
+                self.emb_size,
+                self.output_size,
+                self.decoder_drop,
+                self.max_tgt_len,
+                self.teacher_forcing,
+                self.force_prob,
+                ctx=ctx
+            )
 
         self.decoder_dropout = nn.Dropout(self.decoder_drop[0])
 
@@ -442,7 +458,7 @@ class Model(object):
         if encoder_type == 'rnn':
             pass
             # self.model = Seq2SeqRNN(self.vocab, self.model_param, ctx)
-            self.model = Seq2SeqRNN(self.vocab, 'LSTM', model_param['emb_size'], model_param['hidden_size'],
+            self.model = Seq2SeqRNN(self.mode, self.vocab, 'LSTM', model_param['emb_size'], model_param['hidden_size'],
                                     self.vocab.size, 60, 'Bahdanau', 'two_way', None, None, 0, 1, ctx=ctx)
         elif encoder_type == 'parse':
             self.model = ParseModel(self.vocab, self.vocab_tag, self.model_param, ctx)
@@ -597,7 +613,8 @@ class Model(object):
             x = nd.array([pickle.load(open(os.path.join(source_path, filename), 'rb'))])
             lda = nd.array([pickle.load(open(os.path.join(lda_path, filename), 'rb'))])
             logits = self.model(x, None, lda)
+            return logits
 
-            res.append(logits.argmax(axis=1))
+            res.append(logits)
         print('decode done')
         return res
