@@ -71,12 +71,12 @@ class RNNDecoder(nn.Block):
 
     def __init__(self, rnn_type, hidden_size, emb_size, output_size, dropout, target_len, teaching_force, force_prob,
                  ctx):
-        """TODO: to be defined.
+        """
 
-        :hidden_size: TODO
-        :emb_size: TODO
-        :dropout: TODO
-        :target_len: TODO
+        :hidden_size:
+        :emb_size:
+        :dropout:
+        :target_len:
 
         """
         nn.Block.__init__(self)
@@ -108,13 +108,13 @@ class RNNDecoder(nn.Block):
         self.output_layer = nn.Dense(output_size)
 
     def forward(self, batch_size, encoder_output, decoder_hidden, y=None):
-        """TODO: Docstring for forward.
+        """
 
-        :batch_size: TODO
-        :encoder_output: TODO
-        :encoder_hidden: TODO
-        :y: TODO
-        :returns: TODO
+        :batch_size:
+        :encoder_output:
+        :encoder_hidden:
+        :y:
+        :returns:
 
         """
 
